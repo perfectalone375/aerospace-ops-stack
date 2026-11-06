@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Tests Passing](https://img.shields.io/badge/tests-10%20passed-brightgreen.svg)](tests/)
 
 Cloud-Native Aerospace Microservices Stack & Mission Control Telemetry Visualizer orchestrated with **Docker Compose**.
 
