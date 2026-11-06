@@ -43,9 +43,20 @@ class OrbitPredictionRequest(BaseModel):
 
 
 class CFDSurrogateRequest(BaseModel):
-    airfoil_code: str = Field(default="2412", min_length=4, max_length=4)
+    airfoil_code: str = Field(default="2412", min_length=4, max_length=5)
     alpha_deg: float = Field(default=4.0)
     reynolds: float = Field(default=1e6, gt=0)
+
+
+class OrbitalTransferRequest(BaseModel):
+    r1_km: float = Field(default=6700.0, gt=0)
+    r2_km: float = Field(default=42164.0, gt=0)
+    inclination_deg: float = Field(default=0.0, ge=0.0)
+
+
+class CompressibleGasRequest(BaseModel):
+    mach: float = Field(default=2.0, gt=0)
+    gamma: float = Field(default=1.4, gt=1.0)
 
 
 @app.get("/api/health", tags=["system"])
@@ -58,6 +69,8 @@ def get_system_health() -> dict[str, Any]:
             "orbit_propagator": "READY",
             "cfd_surrogate_engine": "READY",
             "swe_bench_evaluator": "READY",
+            "orbital_transfer_engine": "READY",
+            "compressible_gas_engine": "READY",
         },
         "version": "0.1.0",
     }
@@ -204,6 +217,70 @@ def predict_cfd(req: CFDSurrogateRequest) -> dict[str, Any]:
         "cm": round(cm, 4),
         "ld": round(cl / max(1e-5, cd), 2),
         "cp_distribution": {"x": x, "cp_upper": cp_upper, "cp_lower": cp_lower},
+    }
+
+
+@app.post("/api/simulation/transfer", tags=["telemetry"])
+def calculate_orbital_transfer(req: OrbitalTransferRequest) -> dict[str, Any]:
+    """Calculate two-impulse Hohmann transfer and optional plane-change delta-V budget."""
+    mu = 398600.4418
+    r1 = req.r1_km
+    r2 = req.r2_km
+    v_c1 = math.sqrt(mu / r1)
+    v_c2 = math.sqrt(mu / r2)
+    a_trans = (r1 + r2) / 2.0
+    v_tp = math.sqrt(mu * (2.0 / r1 - 1.0 / a_trans))
+    v_ta = math.sqrt(mu * (2.0 / r2 - 1.0 / a_trans))
+    dv1 = abs(v_tp - v_c1)
+    if req.inclination_deg > 0:
+        di_rad = math.radians(req.inclination_deg)
+        dv2 = math.sqrt(v_c2**2 + v_ta**2 - 2.0 * v_c2 * v_ta * math.cos(di_rad))
+    else:
+        dv2 = abs(v_c2 - v_ta)
+    total_dv = dv1 + dv2
+    t_tof_s = math.pi * math.sqrt((a_trans**3) / mu)
+
+    return {
+        "r1_km": r1,
+        "r2_km": r2,
+        "inclination_deg": req.inclination_deg,
+        "semi_major_axis_km": round(a_trans, 2),
+        "v_circular_1_km_s": round(v_c1, 4),
+        "v_circular_2_km_s": round(v_c2, 4),
+        "delta_v1_km_s": round(dv1, 4),
+        "delta_v2_km_s": round(dv2, 4),
+        "total_delta_v_km_s": round(total_dv, 4),
+        "transfer_duration_hours": round(t_tof_s / 3600.0, 3),
+    }
+
+
+@app.post("/api/simulation/compressible", tags=["telemetry"])
+def calculate_compressible_gas(req: CompressibleGasRequest) -> dict[str, Any]:
+    """Calculate isentropic flow ratios and normal shock properties."""
+    m = req.mach
+    g = req.gamma
+    t0_t = 1.0 + 0.5 * (g - 1.0) * (m**2)
+    p0_p = t0_t ** (g / (g - 1.0))
+    rho0_rho = t0_t ** (1.0 / (g - 1.0))
+    a_astar = (1.0 / m) * (((2.0 / (g + 1.0)) * t0_t) ** ((g + 1.0) / (2.0 * (g - 1.0))))
+
+    shock_data = None
+    if m >= 1.0:
+        m2 = math.sqrt((1.0 + 0.5 * (g - 1.0) * (m**2)) / (g * (m**2) - 0.5 * (g - 1.0)))
+        p2_p1 = 1.0 + (2.0 * g / (g + 1.0)) * (m**2 - 1.0)
+        shock_data = {
+            "mach2": round(m2, 4),
+            "p2_over_p1": round(p2_p1, 4),
+        }
+
+    return {
+        "mach": m,
+        "gamma": g,
+        "t0_over_t": round(t0_t, 4),
+        "p0_over_p": round(p0_p, 4),
+        "rho0_over_rho": round(rho0_rho, 4),
+        "a_over_astar": round(a_astar, 4),
+        "normal_shock": shock_data,
     }
 
 

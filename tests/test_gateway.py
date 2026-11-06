@@ -61,3 +61,21 @@ def test_root_dashboard_html():
     response = client.get("/")
     assert response.status_code == 200
     assert "AeroOps Mission Control" in response.text
+
+
+def test_orbital_transfer_endpoint():
+    payload = {"r1_km": 6700.0, "r2_km": 42164.0, "inclination_deg": 28.5}
+    response = client.post("/api/simulation/transfer", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_delta_v_km_s"] > 3.5
+    assert data["transfer_duration_hours"] > 5.0
+
+
+def test_compressible_gas_endpoint():
+    payload = {"mach": 2.0, "gamma": 1.4}
+    response = client.post("/api/simulation/compressible", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["t0_over_t"] == 1.8
+    assert data["normal_shock"]["mach2"] < 1.0
