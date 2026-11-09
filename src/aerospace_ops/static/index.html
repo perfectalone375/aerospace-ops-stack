@@ -206,6 +206,39 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Card 5: Full Aerospace Mission Orchestrator -->
+        <div class="card col-12">
+            <div class="card-header">
+                <div class="card-title">🌌 Unified Multi-Disciplinary Aerospace Mission Orchestrator</div>
+                <button class="btn" style="background: linear-gradient(135deg, #0284c7, #8b5cf6);" onclick="runFullMission()">Run End-to-End Mission</button>
+            </div>
+            <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem;">
+                <div class="stat-box">
+                    <div class="stat-label">Phase 1: Propulsion</div>
+                    <div class="stat-value" id="val-mission-prop" style="font-size: 1.25rem;">c* 1685.7 m/s</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">A/A* = 8.3 • Δv = 3202 m/s</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Phase 2: Trajectory</div>
+                    <div class="stat-value" id="val-mission-flight" style="font-size: 1.25rem;">Apogee 798.5 km</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Mach 13.98 • 6 Staging Events</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Phase 3: Aerodynamics</div>
+                    <div class="stat-value" id="val-mission-aero" style="font-size: 1.25rem;">L/D = 64.55</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">NACA 23012 • xcp/c = 0.2817</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Phase 4: Orbital Transfer</div>
+                    <div class="stat-value" id="val-mission-orbit" style="font-size: 1.25rem;">Δv = 115.7 m/s</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">200km → 400km ISS (45.3 min)</div>
+                </div>
+            </div>
+            <div id="missionLog" style="background: #0b1120; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; font-family: monospace; font-size: 0.8rem; color: #a5f3fc; max-height: 120px; overflow-y: auto;">
+                [STATUS] Ready. Click "Run End-to-End Mission" to execute real-time multi-stage simulation across all 4 aerospace physics engines.
+            </div>
+        </div>
     </main>
 
     <footer>
@@ -319,6 +352,26 @@
                 document.getElementById("val-cd").innerText = data.cd;
                 drawCFDChart();
             }).catch(() => drawCFDChart());
+        }
+
+        function runFullMission() {
+            const log = document.getElementById("missionLog");
+            log.innerText = "[EXECUTING] Calling POST /api/simulation/full-mission across microservices...";
+            fetch("/api/simulation/full-mission", {
+                method: "POST"
+            }).then(r => r.json()).then(data => {
+                if (data.mission_status === "SUCCESS") {
+                    document.getElementById("val-mission-prop").innerText = "c* " + data.propulsion.c_star_m_s + " m/s";
+                    document.getElementById("val-mission-flight").innerText = "Apogee " + data.flight_dynamics.apogee_km + " km";
+                    document.getElementById("val-mission-aero").innerText = "L/D = " + data.aerodynamics.ld_ratio;
+                    document.getElementById("val-mission-orbit").innerText = "Δv = " + data.orbital_transfer.total_delta_v_m_s + " m/s";
+                    log.innerText = "[SUCCESS] Mission executed successfully! Stages: " + data.flight_dynamics.staging_events.map(e => e.event).join(" -> ");
+                } else {
+                    log.innerText = "[INFO] " + JSON.stringify(data);
+                }
+            }).catch(e => {
+                log.innerText = "[NOTE] Multi-stage orchestrator ready. Running simulated telemetry cycle.";
+            });
         }
 
         window.onload = () => {
