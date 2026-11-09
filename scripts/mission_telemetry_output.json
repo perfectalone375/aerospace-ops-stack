@@ -1,0 +1,64 @@
+{
+  "mission_status": "SUCCESS",
+  "propulsion": {
+    "c_star_m_s": 1685.7,
+    "nozzle_expansion_ratio": 8.3,
+    "t0_over_t": 2.13,
+    "stage1_delta_v_m_s": 3202.0
+  },
+  "flight_dynamics": {
+    "apogee_km": 798.49,
+    "apogee_time_s": 299.9,
+    "max_mach": 13.98,
+    "max_q_kpa": 1102.05,
+    "staging_events": [
+      {
+        "time_s": 0.0,
+        "event": "Ignition of Stage 1 (Solid Booster)",
+        "altitude_m": 0.0
+      },
+      {
+        "time_s": 5.55,
+        "event": "Burnout of Stage 1 (Solid Booster)",
+        "altitude_m": 4030.6,
+        "velocity_m_s": 1642.8
+      },
+      {
+        "time_s": 6.05,
+        "event": "Jettison of Stage 1 casing",
+        "altitude_m": 4845.6
+      },
+      {
+        "time_s": 6.55,
+        "event": "Ignition of Stage 2 (Upper Sustainer)",
+        "altitude_m": 5653.2,
+        "velocity_m_s": 1613.2
+      },
+      {
+        "time_s": 13.05,
+        "event": "Burnout of Stage 2 (Upper Sustainer)",
+        "altitude_m": 22607.2,
+        "velocity_m_s": 4052.0
+      },
+      {
+        "time_s": 13.55,
+        "event": "Jettison of Stage 2 casing",
+        "altitude_m": 24622.0
+      }
+    ]
+  },
+  "aerodynamics": {
+    "airfoil": "23012",
+    "cl": 0.9003,
+    "cd": 0.01395,
+    "ld_ratio": 64.55,
+    "xcp_over_c": 0.2817,
+    "cm_le": -0.2536
+  },
+  "orbital_transfer": {
+    "initial_radius_km": 6578.0,
+    "target_radius_km": 6778.0,
+    "total_delta_v_m_s": 115.7,
+    "transfer_duration_min": 45.26
+  }
+}

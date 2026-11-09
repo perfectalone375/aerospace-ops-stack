@@ -35,6 +35,7 @@ SERVERS = {
     },
 }
 
+
 def get_claude_config_path() -> Path:
     system = platform.system()
     if system == "Windows":
@@ -43,9 +44,16 @@ def get_claude_config_path() -> Path:
             raise RuntimeError("APPDATA environment variable not found on Windows.")
         return Path(app_data) / "Claude" / "claude_desktop_config.json"
     elif system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "Claude"
+            / "claude_desktop_config.json"
+        )
     else:
         return Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+
 
 def find_python_interpreter() -> str:
     # Prefer virtual environment interpreter
@@ -58,6 +66,7 @@ def find_python_interpreter() -> str:
         if candidate.exists():
             return str(candidate.resolve())
     return sys.executable
+
 
 def main() -> None:
     print("🚀 Initializing Aerospace MCP Suite Installer for Claude Desktop...")
@@ -100,6 +109,7 @@ def main() -> None:
 
     print("\n🎉 Success! All aerospace MCP tools have been registered in Claude Desktop.")
     print("👉 Restart Claude Desktop to activate the computational tools.")
+
 
 if __name__ == "__main__":
     main()

@@ -20,3 +20,4 @@ gcloud run services add-iam-policy-binding aerospace-ops-gateway \
 
 echo "✅ Deployment complete! Service URL:"
 gcloud run services describe aerospace-ops-gateway --region="${REGION}" --format="value(status.url)"
+

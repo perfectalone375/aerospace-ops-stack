@@ -1,4 +1,4 @@
-﻿# Production deployment script for Google Cloud Run (PowerShell)
+# Production deployment script for Google Cloud Run (PowerShell)
 param(
     [string]$ProjectId = $(gcloud config get-value project 2>$null),
     [string]$Region = "us-central1"
@@ -25,3 +25,4 @@ gcloud run services add-iam-policy-binding aerospace-ops-gateway `
 
 Write-Host "✅ Deployment complete! Service URL:" -ForegroundColor Green
 gcloud run services describe aerospace-ops-gateway --region=$Region --format="value(status.url)"
+

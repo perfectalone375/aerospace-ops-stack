@@ -1,4 +1,5 @@
 """Aerospace Mission Operations Gateway and Microservice Telemetry Hub."""
+
 from __future__ import annotations
 
 import math
@@ -125,13 +126,15 @@ def simulate_flight(req: FlightSimulationRequest) -> dict[str, Any]:
                 mass = req.dry_mass_kg
 
         if int(t * 10) % 5 == 0:
-            trajectory.append({
-                "time_s": round(t, 1),
-                "altitude_m": round(alt, 1),
-                "velocity_m_s": round(vel, 1),
-                "mach": round(mach, 2),
-                "dynamic_pressure_kpa": round(q / 1000.0, 2),
-            })
+            trajectory.append(
+                {
+                    "time_s": round(t, 1),
+                    "altitude_m": round(alt, 1),
+                    "velocity_m_s": round(vel, 1),
+                    "mach": round(mach, 2),
+                    "dynamic_pressure_kpa": round(q / 1000.0, 2),
+                }
+            )
 
         t += dt
         if alt <= 0.0 and t > req.burn_time_s:
@@ -157,7 +160,9 @@ def predict_orbit(req: OrbitPredictionRequest) -> dict[str, Any]:
     1440.0 / orbital_period_min
 
     # Footprint angular radius theta = acos(R_earth / (R_earth + alt))
-    footprint_radius_km = earth_radius_km * math.acos(earth_radius_km / (earth_radius_km + altitude_km))
+    footprint_radius_km = earth_radius_km * math.acos(
+        earth_radius_km / (earth_radius_km + altitude_km)
+    )
 
     # Example ground track coordinates across next 90 minutes
     track = []
@@ -205,8 +210,27 @@ def predict_cfd(req: CFDSurrogateRequest) -> dict[str, Any]:
 
     x = [round(i / 20.0, 3) for i in range(21)]
     # Surface pressure coefficient
-    cp_upper = [round(1.0 - (1.1 + 2.5 * math.sin(alpha_rad) * math.sqrt(max(0.001, (1.0 - xi) / max(0.01, xi)))) ** 2, 3) for xi in x]
-    cp_lower = [round(1.0 - max(0.0, 1.1 - 2.5 * math.sin(alpha_rad) * math.sqrt(max(0.001, (1.0 - xi) / max(0.01, xi)))) ** 2, 3) for xi in x]
+    cp_upper = [
+        round(
+            1.0
+            - (1.1 + 2.5 * math.sin(alpha_rad) * math.sqrt(max(0.001, (1.0 - xi) / max(0.01, xi))))
+            ** 2,
+            3,
+        )
+        for xi in x
+    ]
+    cp_lower = [
+        round(
+            1.0
+            - max(
+                0.0,
+                1.1 - 2.5 * math.sin(alpha_rad) * math.sqrt(max(0.001, (1.0 - xi) / max(0.01, xi))),
+            )
+            ** 2,
+            3,
+        )
+        for xi in x
+    ]
 
     return {
         "airfoil": req.airfoil_code,
@@ -284,6 +308,14 @@ def calculate_compressible_gas(req: CompressibleGasRequest) -> dict[str, Any]:
     }
 
 
+@app.post("/api/simulation/full-mission", tags=["telemetry"])
+def run_unified_mission() -> dict[str, Any]:
+    """Execute end-to-end multi-disciplinary aerospace mission simulation."""
+    from aerospace_ops.mission import execute_full_aerospace_mission
+
+    return execute_full_aerospace_mission()
+
+
 @app.get("/api/benchmarks", tags=["evaluation"])
 def get_benchmarks() -> dict[str, Any]:
     """Return SWE-bench AI leaderboard standings."""
@@ -291,7 +323,12 @@ def get_benchmarks() -> dict[str, Any]:
         "benchmark": "AeroEval-SWE-Bench",
         "total_scenarios": 5,
         "leaderboard": [
-            {"rank": 1, "model": "Human Expert Gold Baseline", "pass_rate": 100.0, "status": "VERIFIED"},
+            {
+                "rank": 1,
+                "model": "Human Expert Gold Baseline",
+                "pass_rate": 100.0,
+                "status": "VERIFIED",
+            },
             {"rank": 2, "model": "Claude 3.5 Sonnet", "pass_rate": 80.0, "status": "COMPLETED"},
             {"rank": 3, "model": "GPT-4o", "pass_rate": 60.0, "status": "COMPLETED"},
             {"rank": 4, "model": "DeepSeek-Coder V2", "pass_rate": 60.0, "status": "COMPLETED"},
@@ -311,6 +348,7 @@ def get_mission_control_dashboard() -> HTMLResponse:
 
 def main() -> None:
     import uvicorn
+
     uvicorn.run("aerospace_ops.gateway:app", host="0.0.0.0", port=8080, reload=True)
 
 

@@ -23,3 +23,4 @@ ruff check .
 
 ### 👥 Pair Programming & Co-Authorship
 Co-authored-by: Claude <noreply@anthropic.com>
+

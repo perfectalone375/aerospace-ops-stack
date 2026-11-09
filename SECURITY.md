@@ -15,3 +15,4 @@ If you discover a security vulnerability or potential exploit:
 2. Send an email to [vigneshthirupati2000@gmail.com](mailto:vigneshthirupati2000@gmail.com) with detailed steps to reproduce the vulnerability.
 3. You will receive an acknowledgment within 24 hours.
 4. We will coordinate a remediation patch and credit you in the release notes.
+
