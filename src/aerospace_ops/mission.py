@@ -11,15 +11,31 @@ from __future__ import annotations
 
 from typing import Any
 
-from aero_flight_dynamics.trajectory.staging import RocketStage, StagedRocketSimulator
-from cfd_surrogate.surrogate.engine import AerodynamicSurrogateModel
-from openengineering.compressible import critical_area_ratio, stagnation_temperature_ratio
-from openengineering.propulsion import characteristic_velocity_star, tsiolkovsky_delta_v
-from orbital_telemetry.core.maneuvers import hohmann_transfer
-
 
 def execute_full_aerospace_mission() -> dict[str, Any]:
     """Execute end-to-end multi-disciplinary aerospace mission."""
+    try:
+        from aero_flight_dynamics.trajectory.staging import (
+            RocketStage,
+            StagedRocketSimulator,
+        )
+        from cfd_surrogate.surrogate.engine import AerodynamicSurrogateModel
+        from openengineering.compressible import (
+            critical_area_ratio,
+            stagnation_temperature_ratio,
+        )
+        from openengineering.propulsion import (
+            characteristic_velocity_star,
+            tsiolkovsky_delta_v,
+        )
+        from orbital_telemetry.core.maneuvers import hohmann_transfer
+    except ImportError as e:
+        raise RuntimeError(
+            "Sibling aerospace packages (aero-flight-dynamics, cfd-airfoil-surrogate, "
+            "openengineering-toolkit, orbital-telemetry-agent) must be installed to execute full mission: "
+            f"{e}"
+        ) from e
+
     # 1. Propulsion Thermodynamics
     c_star = characteristic_velocity_star(
         gamma=1.22,

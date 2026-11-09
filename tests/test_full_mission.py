@@ -2,10 +2,26 @@
 Integration test for full end-to-end aerospace mission simulation.
 """
 
-from aerospace_ops.mission import execute_full_aerospace_mission
+import pytest
+
+try:
+    import aero_flight_dynamics  # noqa: F401
+    import cfd_surrogate  # noqa: F401
+    import openengineering  # noqa: F401
+    import orbital_telemetry  # noqa: F401
+
+    HAS_SIBLINGS = True
+except ImportError:
+    HAS_SIBLINGS = False
 
 
+@pytest.mark.skipif(
+    not HAS_SIBLINGS,
+    reason="Full mission integration requires all 4 sibling aerospace packages installed",
+)
 def test_full_mission_orchestration():
+    from aerospace_ops.mission import execute_full_aerospace_mission
+
     result = execute_full_aerospace_mission()
 
     assert result["mission_status"] == "SUCCESS"

@@ -6,7 +6,7 @@ import math
 import pathlib
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -313,7 +313,13 @@ def run_unified_mission() -> dict[str, Any]:
     """Execute end-to-end multi-disciplinary aerospace mission simulation."""
     from aerospace_ops.mission import execute_full_aerospace_mission
 
-    return execute_full_aerospace_mission()
+    try:
+        return execute_full_aerospace_mission()
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=501,
+            detail=f"Full aerospace mission orchestrator unavailable in isolated container: {e}",
+        ) from e
 
 
 @app.get("/api/benchmarks", tags=["evaluation"])
