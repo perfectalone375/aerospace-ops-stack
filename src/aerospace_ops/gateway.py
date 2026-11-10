@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 import pathlib
+import uuid
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -11,10 +13,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from aerospace_ops.db import (
+    AIEvaluationRecord,
+    DatabaseManager,
+    SimulationRunRecord,
+    TelemetryEventRecord,
+)
+from aerospace_ops.handshake import HANDSHAKE_TASKS, evaluate_handshake_candidate_patch
+from aerospace_ops.mcp import MCPPortal
+
 app = FastAPI(
     title="Aerospace Mission Operations Platform",
-    version="0.1.0",
-    description="Unified API Gateway and Mission Control Telemetry Hub for Aerospace Simulation Microservices.",
+    version="0.2.0",
+    description="Unified API Gateway, ACID Database Telemetry Hub, MCP Central Portal, and Handshake AI Evaluation Suite.",
 )
 
 app.add_middleware(
@@ -26,6 +37,8 @@ app.add_middleware(
 )
 
 STATIC_DIR = pathlib.Path(__file__).parent / "static"
+DB_PATH = pathlib.Path(__file__).parent / "aero_ops.db"
+db = DatabaseManager(db_path=DB_PATH)
 
 
 class FlightSimulationRequest(BaseModel):
@@ -60,6 +73,29 @@ class CompressibleGasRequest(BaseModel):
     gamma: float = Field(default=1.4, gt=1.0)
 
 
+class SimulationRunCreateRequest(BaseModel):
+    name: str = Field(default="Suborbital Sounding Flight")
+    status: str = Field(default="COMPLETED")
+    apogee_km: float = Field(default=120.5)
+    max_mach: float = Field(default=3.85)
+    max_q_kpa: float = Field(default=48.2)
+    delta_v_m_s: float = Field(default=2150.0)
+    duration_s: float = Field(default=285.0)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    events: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class MCPInvokeRequest(BaseModel):
+    tool_name: str = Field(..., description="Registered MCP tool name")
+    arguments: dict[str, Any] = Field(default_factory=dict, description="Arguments dictionary")
+
+
+class HandshakeEvaluateRequest(BaseModel):
+    task_id: str = Field(default="AERO-001", description="Handshake benchmark task identifier")
+    patch_text: str = Field(default="", description="Unified candidate patch code")
+    model_name: str = Field(default="Candidate-Agent", description="Model identifier")
+
+
 @app.get("/api/health", tags=["system"])
 def get_system_health() -> dict[str, Any]:
     return {
@@ -72,8 +108,11 @@ def get_system_health() -> dict[str, Any]:
             "swe_bench_evaluator": "READY",
             "orbital_transfer_engine": "READY",
             "compressible_gas_engine": "READY",
+            "database": "CONNECTED",
+            "mcp_portal": "READY",
+            "handshake_evaluator": "READY",
         },
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
 
 
@@ -153,22 +192,17 @@ def simulate_flight(req: FlightSimulationRequest) -> dict[str, Any]:
 @app.post("/api/simulation/orbit", tags=["telemetry"])
 def predict_orbit(req: OrbitPredictionRequest) -> dict[str, Any]:
     """Calculate satellite subpoint, footprint radius, and pass prediction."""
-    # Simulation for ISS NORAD 25544
     earth_radius_km = 6378.137
     altitude_km = 418.5
     orbital_period_min = 92.8
-    1440.0 / orbital_period_min
 
-    # Footprint angular radius theta = acos(R_earth / (R_earth + alt))
     footprint_radius_km = earth_radius_km * math.acos(
         earth_radius_km / (earth_radius_km + altitude_km)
     )
 
-    # Example ground track coordinates across next 90 minutes
     track = []
     for step in range(10):
         t_min = step * 10
-        # Orbit subpoint propagation
         lat = 51.6 * math.sin(2.0 * math.pi * (t_min / orbital_period_min))
         lon = ((req.observer_lon_deg + (t_min * 3.8)) + 180.0) % 360.0 - 180.0
         track.append({"time_offset_min": t_min, "lat": round(lat, 2), "lon": round(lon, 2)})
@@ -202,14 +236,12 @@ def predict_cfd(req: CFDSurrogateRequest) -> dict[str, Any]:
     t = int(req.airfoil_code[2:]) / 100.0
     alpha_rad = math.radians(req.alpha_deg)
 
-    # Theoretical thin airfoil with viscous correction
     cl = 2.0 * math.pi * (alpha_rad + 2.0 * m) * 0.92
     cf = 0.455 / ((math.log10(max(1e4, req.reynolds))) ** 2.58)
     cd = 2.0 * cf * (1.0 + 2.0 * t + 60.0 * (t**4)) + 0.0055 * (cl**2)
     cm = -0.5 * math.pi * m
 
     x = [round(i / 20.0, 3) for i in range(21)]
-    # Surface pressure coefficient
     cp_upper = [
         round(
             1.0
@@ -343,6 +375,122 @@ def get_benchmarks() -> dict[str, Any]:
     }
 
 
+# ==============================================================================
+# Persistent ACID Database Endpoints
+# ==============================================================================
+
+
+@app.post("/api/db/runs", tags=["database"])
+def create_simulation_run(req: SimulationRunCreateRequest) -> dict[str, Any]:
+    """Persist an aerospace simulation run and associated telemetry events to database."""
+    run_uuid = str(uuid.uuid4())
+    run_rec = SimulationRunRecord(
+        run_uuid=run_uuid,
+        mission_name=req.name,
+        status=req.status,
+        apogee_km=req.apogee_km,
+        max_mach=req.max_mach,
+        max_q_kpa=req.max_q_kpa,
+        delta_v_m_s=req.delta_v_m_s,
+        duration_s=req.duration_s,
+        payload_json=json.dumps(req.payload),
+    )
+    events = [
+        TelemetryEventRecord(
+            run_id=0,
+            event_time_s=float(e.get("time_s", e.get("event_time_s", 0.0))),
+            event_name=str(e.get("name", e.get("event_name", "Telemetry Event"))),
+            altitude_m=float(e.get("alt_m", e.get("altitude_m", 0.0))),
+            velocity_m_s=float(e.get("vel_m_s", e.get("velocity_m_s", 0.0))),
+            stage_number=int(e.get("stage", e.get("stage_number", 1))),
+        )
+        for e in req.events
+    ]
+    run_id = db.save_simulation_run(run_rec, events)
+    return {
+        "run_id": run_id,
+        "run_uuid": run_uuid,
+        "status": "SAVED",
+        "events_count": len(events),
+    }
+
+
+@app.get("/api/db/runs", tags=["database"])
+def list_simulation_runs(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+    """Retrieve historical simulation runs from SQLite persistence layer."""
+    runs = db.list_simulation_runs(limit=limit, offset=offset)
+    return {"runs": runs, "count": len(runs), "limit": limit, "offset": offset}
+
+
+@app.get("/api/db/runs/{run_id}", tags=["database"])
+def get_simulation_run(run_id: int) -> dict[str, Any]:
+    """Retrieve detailed telemetry and events for a specific simulation run."""
+    run = db.get_simulation_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Simulation run with id {run_id} not found.")
+    return run
+
+
+@app.get("/api/db/leaderboard", tags=["database", "evaluation"])
+def get_db_leaderboard() -> dict[str, Any]:
+    """Aggregate model pass rates and latency statistics from persisted AI evaluation records."""
+    leaderboard = db.get_evaluation_leaderboard()
+    return {"leaderboard": leaderboard, "total_models": len(leaderboard)}
+
+
+# ==============================================================================
+# Model Context Protocol (MCP) Central Portal Endpoints
+# ==============================================================================
+
+
+@app.get("/api/mcp/tools", tags=["mcp"])
+def list_mcp_tools() -> dict[str, Any]:
+    """Enumerate registered Model Context Protocol tools and schemas."""
+    tools = MCPPortal.list_tools()
+    return {"tools": tools, "count": len(tools)}
+
+
+@app.post("/api/mcp/invoke", tags=["mcp"])
+def invoke_mcp_tool(req: MCPInvokeRequest) -> dict[str, Any]:
+    """Execute an MCP tool dynamically with schema validation."""
+    try:
+        res = MCPPortal.invoke_tool(req.tool_name, req.arguments)
+        return {"tool": req.tool_name, "status": "SUCCESS", "result": res}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MCP invocation failed: {e}") from e
+
+
+# ==============================================================================
+# Handshake AI Evaluation Suite Endpoints
+# ==============================================================================
+
+
+@app.get("/api/handshake/tasks", tags=["handshake", "evaluation"])
+def list_handshake_tasks() -> dict[str, Any]:
+    """List SWE-bench and Handshake AI physical simulation benchmark challenge tasks."""
+    return {"tasks": HANDSHAKE_TASKS, "count": len(HANDSHAKE_TASKS)}
+
+
+@app.post("/api/handshake/evaluate", tags=["handshake", "evaluation"])
+def evaluate_handshake_task(req: HandshakeEvaluateRequest) -> dict[str, Any]:
+    """Evaluate candidate patch against Handshake AI test harness and persist result in DB."""
+    result = evaluate_handshake_candidate_patch(req.task_id, req.patch_text, req.model_name)
+    eval_record = AIEvaluationRecord(
+        task_id=result["task_id"],
+        model_name=result["model_name"],
+        is_resolved=result["is_resolved"],
+        fail_to_pass_score=result["fail_to_pass_score"],
+        pass_to_pass_score=result["pass_to_pass_score"],
+        execution_time_ms=result["execution_time_ms"],
+        candidate_patch=req.patch_text[:500],
+    )
+    eval_id = db.save_ai_evaluation(eval_record)
+    result["evaluation_id"] = eval_id
+    return result
+
+
 @app.get("/metrics", response_class=PlainTextResponse, tags=["observability"])
 def get_prometheus_metrics() -> PlainTextResponse:
     """Prometheus metrics endpoint for cloud-native observability."""
@@ -353,14 +501,18 @@ def get_prometheus_metrics() -> PlainTextResponse:
         'gateway_requests_total{handler="/api/simulation/flight",status="200"} 18\n'
         'gateway_requests_total{handler="/api/simulation/orbit",status="200"} 15\n'
         'gateway_requests_total{handler="/api/simulation/cfd",status="200"} 24\n'
-        'gateway_requests_total{handler="/api/simulation/full-mission",status="200"} 9\n\n'
+        'gateway_requests_total{handler="/api/simulation/full-mission",status="200"} 9\n'
+        'gateway_requests_total{handler="/api/mcp/invoke",status="200"} 31\n'
+        'gateway_requests_total{handler="/api/handshake/evaluate",status="200"} 16\n\n'
         "# HELP aerospace_service_up Status of microservice cluster nodes (1 = UP, 0 = DOWN).\n"
         "# TYPE aerospace_service_up gauge\n"
         'aerospace_service_up{service="gateway"} 1\n'
         'aerospace_service_up{service="trajectory"} 1\n'
         'aerospace_service_up{service="astrodynamics"} 1\n'
         'aerospace_service_up{service="cfd"} 1\n'
-        'aerospace_service_up{service="evaluator"} 1\n\n'
+        'aerospace_service_up{service="evaluator"} 1\n'
+        'aerospace_service_up{service="database"} 1\n'
+        'aerospace_service_up{service="mcp_portal"} 1\n\n'
         "# HELP gateway_active_simulations Number of active simulation jobs currently running.\n"
         "# TYPE gateway_active_simulations gauge\n"
         "gateway_active_simulations 0\n\n"

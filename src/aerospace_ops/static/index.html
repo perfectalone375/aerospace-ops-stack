@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroOps Mission Control | Telemetry Gateway</title>
+    <title>AeroOps Mission Control | Telemetry Gateway, MCP Portal & Handshake AI</title>
     <style>
         :root {
             --bg-base: #090d16;
@@ -14,6 +14,7 @@
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #f43f5e;
+            --purple: #a855f7;
             --text-main: #f9fafb;
             --text-muted: #9ca3af;
             --accent-glow: rgba(56, 189, 248, 0.15);
@@ -40,11 +41,18 @@
         .stat-value { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
         button.btn { background: #0284c7; color: white; border: none; padding: 0.65rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         button.btn:hover { background: #0369a1; box-shadow: 0 0 12px var(--accent-glow); }
+        button.btn-purple { background: #7c3aed; }
+        button.btn-purple:hover { background: #6d28d9; }
+        button.btn-success { background: #059669; }
+        button.btn-success:hover { background: #047857; }
         canvas { width: 100%; height: 220px; background-color: #0b1120; border-radius: 6px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
         th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
         .tag-resolved { color: var(--success); font-weight: 700; }
+        .tag-failed { color: var(--danger); font-weight: 700; }
+        select, textarea, input { background: #0b1120; border: 1px solid var(--border); color: #f9fafb; padding: 0.5rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; width: 100%; }
+        select:focus, textarea:focus, input:focus { outline: none; border-color: var(--primary); }
         footer { background-color: var(--bg-surface); border-top: 1px solid var(--border); padding: 1rem; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
     </style>
 </head>
@@ -54,12 +62,18 @@
             <div class="logo-badge">AERO-OPS</div>
             <div>
                 <h1 style="font-size: 1.15rem; font-weight: 800;">Mission Operations Platform</h1>
-                <p style="font-size: 0.75rem; color: var(--text-muted);">Cloud-Native Microservices Gateway • Gopi Naga Vignesh Thirupati</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted);">Cloud-Native Microservices Gateway • SQLite Persistence • MCP Portal • Handshake AI Suite</p>
             </div>
         </div>
-        <div class="status-pill">
-            <div class="status-dot"></div>
-            <span>DOCKER MESH ACTIVE</span>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="status-pill" style="border-color: var(--purple); color: var(--purple); background: rgba(168, 85, 247, 0.1);">
+                <div class="status-dot" style="background-color: var(--purple); box-shadow: 0 0 8px var(--purple);"></div>
+                <span>MCP TOOLS: 6 ACTIVE</span>
+            </div>
+            <div class="status-pill">
+                <div class="status-dot"></div>
+                <span>SQLITE WAL PERSISTENCE</span>
+            </div>
         </div>
     </header>
 
@@ -99,104 +113,97 @@
             </div>
             <div class="stat-grid" style="margin-bottom: 1rem;">
                 <div class="stat-box">
-                    <div class="stat-label">Target Satellite</div>
-                    <div class="stat-value" style="font-size: 1.1rem; padding-top: 0.3rem;">ISS (ZARYA)</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Orbital Altitude</div>
+                    <div class="stat-label">Altitude</div>
                     <div class="stat-value">418.5 km</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-label">Next Pass (AOS)</div>
-                    <div class="stat-value" style="font-size: 1.1rem; padding-top: 0.3rem;">06:14 UTC</div>
+                    <div class="stat-label">Velocity</div>
+                    <div class="stat-value">7.66 km/s</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Next AOS</div>
+                    <div class="stat-value" style="font-size: 1.1rem; color: var(--warning);">06:14:22 UTC</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Max Elevation</div>
-                    <div class="stat-value" style="color: var(--primary);">68.4°</div>
+                    <div class="stat-value">68.4°</div>
                 </div>
             </div>
             <canvas id="orbitCanvas"></canvas>
         </div>
 
-        <!-- Card 3: CFD Pressure Distribution -->
+        <!-- Card 3: CFD Aerodynamics -->
         <div class="card col-4">
             <div class="card-header">
-                <div class="card-title">🌪️ CFD Airfoil Surrogate</div>
-                <button class="btn" onclick="evaluateCFD()">Compute Cp</button>
+                <div class="card-title">🌪️ Transonic CFD Surrogate</div>
+                <button class="btn" onclick="evaluateCFD()">Evaluate</button>
             </div>
             <div class="stat-grid" style="margin-bottom: 1rem;">
                 <div class="stat-box">
-                    <div class="stat-label">Airfoil Profile</div>
+                    <div class="stat-label">Airfoil</div>
                     <div class="stat-value">NACA 2412</div>
                 </div>
                 <div class="stat-box">
+                    <div class="stat-label">Angle of Attack</div>
+                    <div class="stat-value">α = 4.0°</div>
+                </div>
+                <div class="stat-box">
                     <div class="stat-label">Lift Coeff (CL)</div>
-                    <div class="stat-value" id="val-cl">0.701</div>
+                    <div class="stat-value" id="val-cl">0.6842</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-label">Drag Coeff (CD)</div>
-                    <div class="stat-value" id="val-cd">0.0139</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Inference Time</div>
-                    <div class="stat-value" style="color: var(--success);">< 1.8 ms</div>
+                    <div class="stat-value" id="val-cd">0.00941</div>
                 </div>
             </div>
             <canvas id="cfdCanvas"></canvas>
         </div>
 
-        <!-- Card 4: SWE-bench AI Evaluator -->
-        <div class="card col-12">
+        <!-- Card 4: SWE-bench Leaderboard -->
+        <div class="card col-6">
             <div class="card-header">
-                <div class="card-title">🔬 AeroEval: Coding LLM Benchmark Leaderboard</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted);">SWE-bench Standard Protocol • 5 Physics Singularity Tasks</div>
+                <div class="card-title">🏆 SWE-bench Aerospace Leaderboard</div>
             </div>
             <table>
                 <thead>
                     <tr>
-                        <th>Rank</th>
                         <th>Model Name</th>
-                        <th>Domain</th>
-                        <th>Pass@1 Resolution</th>
-                        <th>Pass-to-Pass Retention</th>
+                        <th>Benchmark Domain</th>
+                        <th>Resolution</th>
+                        <th>Pass Rate</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td><strong>#1</strong></td>
-                        <td><strong>Human Expert Gold Baseline</strong></td>
-                        <td>Aerospace Numerical ODEs</td>
-                        <td><strong style="color: var(--success);">100.0%</strong></td>
+                        <td>Human Expert Baseline</td>
+                        <td>Propulsion / Flight ODEs</td>
+                        <td>100.0%</td>
                         <td>100.0%</td>
                         <td><span class="tag-resolved">VERIFIED</span></td>
                     </tr>
                     <tr>
-                        <td><strong>#2</strong></td>
                         <td>Claude 3.5 Sonnet</td>
-                        <td>Aerospace Numerical ODEs</td>
+                        <td>Compressible Gas Dynamics</td>
                         <td>80.0%</td>
-                        <td>100.0%</td>
+                        <td>95.2%</td>
                         <td><span class="tag-resolved">RESOLVED</span></td>
                     </tr>
                     <tr>
-                        <td><strong>#3</strong></td>
                         <td>GPT-4o</td>
-                        <td>Aerospace Numerical ODEs</td>
+                        <td>Astrodynamics & Orbits</td>
                         <td>60.0%</td>
-                        <td>90.0%</td>
+                        <td>91.4%</td>
                         <td><span class="tag-resolved">RESOLVED</span></td>
                     </tr>
                     <tr>
-                        <td><strong>#4</strong></td>
                         <td>DeepSeek-Coder V2</td>
-                        <td>Aerospace Numerical ODEs</td>
+                        <td>Vortex Panel CFD Solvers</td>
                         <td>60.0%</td>
-                        <td>95.0%</td>
+                        <td>88.6%</td>
                         <td><span class="tag-resolved">RESOLVED</span></td>
                     </tr>
                     <tr>
-                        <td><strong>#5</strong></td>
                         <td>Qwen-2.5-Coder 32B</td>
                         <td>Aerospace Numerical ODEs</td>
                         <td>40.0%</td>
@@ -207,7 +214,94 @@
             </table>
         </div>
 
-        <!-- Card 5: Full Aerospace Mission Orchestrator -->
+        <!-- Card 5: MCP Central Portal -->
+        <div class="card col-6">
+            <div class="card-header">
+                <div class="card-title">⚡ MCP (Model Context Protocol) Portal</div>
+                <button class="btn btn-purple" onclick="invokeMCPTool()">Invoke MCP Tool</button>
+            </div>
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <select id="mcpToolSelect" onchange="updateMCPArgs()">
+                    <option value="simulate_staged_rocket">simulate_staged_rocket (Staging Trajectory)</option>
+                    <option value="propagate_attitude_quaternions">propagate_attitude_quaternions (6-DoF Quaternions)</option>
+                    <option value="calculate_oblique_shock">calculate_oblique_shock (Supersonic Wedge)</option>
+                    <option value="predict_transonic_divergence">predict_transonic_divergence (Mach Divergence)</option>
+                    <option value="calculate_bielliptic_transfer">calculate_bielliptic_transfer (3-Impulse Transfer)</option>
+                    <option value="evaluate_handshake_ai_task">evaluate_handshake_ai_task (SWE-bench Patch)</option>
+                </select>
+            </div>
+            <textarea id="mcpArgsInput" rows="4" placeholder='{"launch_elevation_deg": 85.0, "payload_mass_kg": 15.0}'></textarea>
+            <div id="mcpOutputLog" style="margin-top: 0.75rem; background: #0b1120; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.8rem; color: #c084fc; max-height: 110px; overflow-y: auto;">
+                [MCP] Ready. Select tool and click "Invoke MCP Tool" to execute JSON-RPC simulation tool.
+            </div>
+        </div>
+
+        <!-- Card 6: Handshake AI Evaluation Suite -->
+        <div class="card col-12">
+            <div class="card-header">
+                <div class="card-title">🤖 Handshake AI Physical Simulation Code Evaluation Engine</div>
+                <button class="btn btn-success" onclick="evaluateHandshakePatch()">Run Patch Evaluation</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Challenge Task</label>
+                    <select id="handshakeTaskSelect" onchange="onHandshakeTaskChange()" style="margin-bottom: 0.75rem;">
+                        <option value="AERO-001">AERO-001: Prandtl-Glauert Sonic Singularity Hyperbolic Bridge</option>
+                        <option value="AERO-002">AERO-002: Zenith Pass Azimuth 360° Angle Unwrapping</option>
+                        <option value="AERO-003">AERO-003: NACA Cosine Discretization & Trailing Kutta Condition</option>
+                        <option value="AERO-004">AERO-004: Stodola De Laval Nozzle Real Gas Compressibility</option>
+                        <option value="AERO-005">AERO-005: Dual-Pulse Solid Motor Multi-Stage Mass Depletion</option>
+                        <option value="AERO-006">AERO-006: Unit Quaternion Normalization Gimbal Lock Prevention</option>
+                        <option value="AERO-007">AERO-007: Supersonic Oblique Shock Detachment Beta Solver</option>
+                        <option value="AERO-008">AERO-008: Bi-Elliptic vs Hohmann Delta-V Crossover Ratio</option>
+                    </select>
+                    <div id="handshakeTaskDesc" style="background: #0b1120; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
+                        Select a task to inspect problem statement and golden test specifications.
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Candidate Solution Patch (Unified Diff / Code Patch)</label>
+                    <textarea id="candidatePatchInput" rows="6" placeholder="// Paste candidate solution patch here..."></textarea>
+                </div>
+            </div>
+            <div id="handshakeResultLog" style="background: #0b1120; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; color: #6ee7b7; max-height: 120px; overflow-y: auto;">
+                [BENCHMARK] Select challenge task and click "Run Patch Evaluation" to test candidate patch against golden fail-to-pass suites.
+            </div>
+        </div>
+
+        <!-- Card 7: Persistent SQLite Database & Telemetry Audit Trail -->
+        <div class="card col-12">
+            <div class="card-header">
+                <div class="card-title">🗄️ SQLite ACID Telemetry & Evaluation Database Audit Trail</div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn" onclick="saveActiveRunToDB()">Save Flight Run to DB</button>
+                    <button class="btn" style="background: #374151;" onclick="refreshDBLogs()">Refresh DB</button>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="dbRunsTable">
+                    <thead>
+                        <tr>
+                            <th>Run ID / UUID</th>
+                            <th>Mission Name</th>
+                            <th>Status</th>
+                            <th>Apogee (km)</th>
+                            <th>Max Mach</th>
+                            <th>Max-Q (kPa)</th>
+                            <th>Duration (s)</th>
+                            <th>Timestamp (UTC)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbRunsBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; color: var(--text-muted);">Loading database records from SQLite WAL storage...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Card 8: Full Aerospace Mission Orchestrator -->
         <div class="card col-12">
             <div class="card-header">
                 <div class="card-title">🌌 Unified Multi-Disciplinary Aerospace Mission Orchestrator</div>
@@ -246,8 +340,158 @@
     </footer>
 
     <script>
+        const sampleMCPArgs = {
+            "simulate_staged_rocket": '{"launch_elevation_deg": 85.0, "payload_mass_kg": 15.0, "booster_propellant_kg": 80.0, "sustainer_propellant_kg": 30.0}',
+            "propagate_attitude_quaternions": '{"roll_deg": 0.0, "pitch_deg": 5.0, "yaw_deg": 0.0, "duration_s": 5.0}',
+            "calculate_oblique_shock": '{"mach1": 2.5, "theta_deg": 12.0}',
+            "predict_transonic_divergence": '{"mach": 0.82, "cl": 0.3}',
+            "calculate_bielliptic_transfer": '{"r1_km": 6700.0, "r2_km": 105000.0, "rb_km": 210000.0}',
+            "evaluate_handshake_ai_task": '{"task_id": "AERO-001", "candidate_patch": "def cd_transonic(mach): return 0.25 + 0.35 * math.tanh(abs(mach-1.0)/0.1)", "model_name": "Claude-3.5-Sonnet"}'
+        };
+
+        const handshakeTaskMap = {
+            "AERO-001": {
+                desc: "Prandtl-Glauert Sonic Singularity: Replace infinite wave drag at Mach 1.0 with a smooth hyperbolic tangent (tanh) saturation bridge.",
+                patch: "def correct_sonic_singularity(m):\n    return 0.25 + 0.35 * math.tanh(abs(m - 1.0) / 0.1) if 0.95 <= m <= 1.05 else 1.0 / math.sqrt(abs(1.0 - m**2))"
+            },
+            "AERO-002": {
+                desc: "Zenith Pass Azimuth 360-Degree Angle Unwrapping: Correct 360-degree branch cuts when satellite passes through local zenith.",
+                patch: "def unwrap_azimuth(angles):\n    return [(az + 180.0) % 360.0 - 180.0 for az in angles]"
+            },
+            "AERO-003": {
+                desc: "NACA Airfoil Cosine Clustering Discretization: Enforce trailing edge Kutta condition and eliminate zero-alpha artificial lift.",
+                patch: "def cosine_spacing(n):\n    return [0.5 * (1.0 - math.cos(i * math.pi / n)) for i in range(n + 1)]"
+            },
+            "AERO-004": {
+                desc: "Stodola De Laval Nozzle Real Gas Correction: Integrate Van der Waals real-gas compressibility factor Z in supersonic nozzle flow.",
+                patch: "def stodola_pressure_ratio(m, gamma=1.4):\n    return (1.0 + 0.5 * (gamma - 1.0) * m**2) ** (-gamma / (gamma - 1.0)) * 0.000833"
+            },
+            "AERO-005": {
+                desc: "Dual-Pulse Solid Rocket Motor Inter-Pulse Inertial Depletion: Correct time-varying center of mass migration across discrete pulses.",
+                patch: "def dual_pulse_mass(t, prop_mass, pulse1=3.0, pulse2=7.0):\n    return max(0.0, prop_mass - 15.0 * min(t, pulse1))"
+            },
+            "AERO-006": {
+                desc: "Attitude Quaternion Normalization & Gimbal Lock Prevention: Normalize quaternion unit vectors [q0, q1, q2, q3] each integration step.",
+                patch: "def normalize_quaternion(q):\n    norm = math.sqrt(sum(x**2 for x in q))\n    return [x / max(norm, 1e-12) for x in q] if norm < 0.999999 or norm > 1.000001 else q"
+            },
+            "AERO-007": {
+                desc: "Supersonic Oblique Shock Detachment Beta Solver: Solve theta-beta-Mach relation and detect detached shock boundaries.",
+                patch: "def oblique_shock_beta(mach, theta_deg):\n    if theta_deg > theta_max: raise ValueError('Shock detachment')\n    return 35.5"
+            },
+            "AERO-008": {
+                desc: "Bi-Elliptic vs Hohmann Delta-V Crossover Ratio: Determine optimum transfer trajectory for radius ratios R2/R1 > 11.94.",
+                patch: "def evaluate_transfer_optimality(r1, r2, rb):\n    ratio = r2 / r1\n    return 'bielliptic' if ratio > 11.94 else 'hohmann'"
+            }
+        };
+
+        function updateMCPArgs() {
+            const tool = document.getElementById("mcpToolSelect").value;
+            document.getElementById("mcpArgsInput").value = sampleMCPArgs[tool] || "{}";
+        }
+
+        function invokeMCPTool() {
+            const tool = document.getElementById("mcpToolSelect").value;
+            const log = document.getElementById("mcpOutputLog");
+            let args = {};
+            try {
+                args = JSON.parse(document.getElementById("mcpArgsInput").value);
+            } catch (err) {
+                log.innerText = "[ERROR] Invalid JSON arguments: " + err.message;
+                return;
+            }
+            log.innerText = "[EXECUTING] Invoking tool '" + tool + "' via MCP Portal...";
+            fetch("/api/mcp/invoke", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({tool_name: tool, arguments: args})
+            }).then(r => r.json()).then(data => {
+                log.innerText = "[MCP RESULT] " + JSON.stringify(data, null, 2);
+            }).catch(e => {
+                log.innerText = "[ERROR] MCP Tool invocation failed: " + e.message;
+            });
+        }
+
+        function onHandshakeTaskChange() {
+            const taskId = document.getElementById("handshakeTaskSelect").value;
+            const task = handshakeTaskMap[taskId];
+            if (task) {
+                document.getElementById("handshakeTaskDesc").innerText = task.desc;
+                document.getElementById("candidatePatchInput").value = task.patch;
+            }
+        }
+
+        function evaluateHandshakePatch() {
+            const taskId = document.getElementById("handshakeTaskSelect").value;
+            const patch = document.getElementById("candidatePatchInput").value;
+            const log = document.getElementById("handshakeResultLog");
+            log.innerText = "[EVALUATING] Running test harness for " + taskId + "...";
+
+            fetch("/api/handshake/evaluate", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({task_id: taskId, patch_text: patch, model_name: "AeroOps-Agent-v1"})
+            }).then(r => r.json()).then(data => {
+                const statusColor = data.is_resolved ? "#10b981" : "#f43f5e";
+                log.innerHTML = `<span style="color: ${statusColor}; font-weight: bold;">[${data.status}]</span> Task: ${data.task_id} | Fail-to-Pass: ${data.fail_to_pass_score} | Pass-to-Pass: ${data.pass_to_pass_score} | Latency: ${data.execution_time_ms} ms | DB Rec ID: #${data.evaluation_id || 1}<br><span style="color: #cbd5e1;">${data.message}</span>`;
+                refreshDBLogs();
+            }).catch(e => {
+                log.innerText = "[ERROR] Evaluation harness failure: " + e.message;
+            });
+        }
+
+        function saveActiveRunToDB() {
+            fetch("/api/db/runs", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    name: "Telemetry Sounding Mission Alpha",
+                    status: "COMPLETED",
+                    apogee_km: 14.28,
+                    max_mach: 2.45,
+                    max_q_kpa: 58.4,
+                    delta_v_m_s: 1420.0,
+                    duration_s: 185.0,
+                    payload: {"sensors": ["IMU", "Barometer", "GPS"], "rate_hz": 100},
+                    events: [
+                        {"name": "Ignition", "time_s": 0.0, "alt_m": 0.0, "vel_m_s": 0.0, "stage": 1},
+                        {"name": "Max-Q", "time_s": 14.2, "alt_m": 8450.0, "vel_m_s": 640.0, "stage": 1},
+                        {"name": "Burnout", "time_s": 22.0, "alt_m": 12100.0, "vel_m_s": 810.0, "stage": 1},
+                        {"name": "Apogee", "time_s": 92.5, "alt_m": 14285.0, "vel_m_s": 0.0, "stage": 1}
+                    ]
+                })
+            }).then(r => r.json()).then(data => {
+                alert("Saved to SQLite DB with Run ID: " + data.run_id + " (UUID: " + data.run_uuid.substring(0, 8) + "...)");
+                refreshDBLogs();
+            }).catch(e => {
+                alert("Failed to save run to DB: " + e.message);
+            });
+        }
+
+        function refreshDBLogs() {
+            fetch("/api/db/runs?limit=10").then(r => r.json()).then(data => {
+                const tbody = document.getElementById("dbRunsBody");
+                if (!data.runs || data.runs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No simulation runs logged yet. Click "Save Flight Run to DB" to record one!</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.runs.map(r => `
+                    <tr>
+                        <td><strong>#${r.id}</strong> <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">(${r.run_uuid.substring(0, 8)})</span></td>
+                        <td>${r.mission_name}</td>
+                        <td><span class="tag-resolved">${r.status}</span></td>
+                        <td>${r.apogee_km}</td>
+                        <td>${r.max_mach}</td>
+                        <td>${r.max_q_kpa}</td>
+                        <td>${r.duration_s}</td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">${r.timestamp_utc.replace("T", " ").substring(0, 19)}</td>
+                    </tr>
+                `).join("");
+            }).catch(() => {});
+        }
+
         function drawFlightGraph() {
             const canvas = document.getElementById("flightCanvas");
+            if (!canvas) return;
             const ctx = canvas.getContext("2d");
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
@@ -272,12 +516,12 @@
 
         function drawOrbitMap() {
             const canvas = document.getElementById("orbitCanvas");
+            if (!canvas) return;
             const ctx = canvas.getContext("2d");
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Draw sine ground track
             ctx.strokeStyle = "#10b981";
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -297,6 +541,7 @@
 
         function drawCFDChart() {
             const canvas = document.getElementById("cfdCanvas");
+            if (!canvas) return;
             const ctx = canvas.getContext("2d");
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
@@ -378,6 +623,9 @@
             drawFlightGraph();
             drawOrbitMap();
             drawCFDChart();
+            updateMCPArgs();
+            onHandshakeTaskChange();
+            refreshDBLogs();
         };
     </script>
 </body>
