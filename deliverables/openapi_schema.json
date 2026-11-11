@@ -1,0 +1,977 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Aerospace Mission Operations Platform",
+    "description": "Unified API Gateway, ACID Database Telemetry Hub, JSON-RPC 2.0 MCP Portal, and Handshake AI Sandboxed Code Evaluator.",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get System Health",
+        "operationId": "get_system_health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get System Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/flight": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Simulate Flight",
+        "description": "Execute simplified 3-DoF suborbital trajectory flight simulation.",
+        "operationId": "simulate_flight_api_simulation_flight_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlightSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Simulate Flight Api Simulation Flight Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/orbit": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Predict Orbit",
+        "description": "Calculate satellite subpoint, footprint radius, and pass prediction.",
+        "operationId": "predict_orbit_api_simulation_orbit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrbitPredictionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Predict Orbit Api Simulation Orbit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/cfd": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Predict Cfd",
+        "description": "Compute instantaneous airfoil pressure distribution and coefficients.",
+        "operationId": "predict_cfd_api_simulation_cfd_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CFDSurrogateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Predict Cfd Api Simulation Cfd Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/transfer": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Calculate Orbital Transfer",
+        "description": "Calculate two-impulse Hohmann transfer and optional plane-change delta-V budget.",
+        "operationId": "calculate_orbital_transfer_api_simulation_transfer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrbitalTransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Calculate Orbital Transfer Api Simulation Transfer Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/compressible": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Calculate Compressible Gas",
+        "description": "Calculate isentropic flow ratios and normal shock properties.",
+        "operationId": "calculate_compressible_gas_api_simulation_compressible_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompressibleGasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Calculate Compressible Gas Api Simulation Compressible Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulation/full-mission": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Run Unified Mission",
+        "description": "Execute end-to-end multi-disciplinary aerospace mission simulation.",
+        "operationId": "run_unified_mission_api_simulation_full_mission_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Unified Mission Api Simulation Full Mission Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/benchmarks": {
+      "get": {
+        "tags": [
+          "evaluation"
+        ],
+        "summary": "Get Benchmarks",
+        "description": "Return SWE-bench AI leaderboard standings.",
+        "operationId": "get_benchmarks_api_benchmarks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Benchmarks Api Benchmarks Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/runs": {
+      "post": {
+        "tags": [
+          "database"
+        ],
+        "summary": "Create Simulation Run",
+        "description": "Persist an aerospace simulation run and associated telemetry events to database.",
+        "operationId": "create_simulation_run_api_db_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRunCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Simulation Run Api Db Runs Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "database"
+        ],
+        "summary": "List Simulation Runs",
+        "description": "Retrieve historical simulation runs from SQLite persistence layer.",
+        "operationId": "list_simulation_runs_api_db_runs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Simulation Runs Api Db Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "database"
+        ],
+        "summary": "Get Simulation Run",
+        "description": "Retrieve detailed telemetry and events for a specific simulation run.",
+        "operationId": "get_simulation_run_api_db_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Simulation Run Api Db Runs  Run Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/db/leaderboard": {
+      "get": {
+        "tags": [
+          "database",
+          "evaluation"
+        ],
+        "summary": "Get Db Leaderboard",
+        "description": "Aggregate model pass rates and latency statistics from persisted AI evaluation records.",
+        "operationId": "get_db_leaderboard_api_db_leaderboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Db Leaderboard Api Db Leaderboard Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/tools": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "List Mcp Tools",
+        "description": "Enumerate registered Model Context Protocol tools and schemas.",
+        "operationId": "list_mcp_tools_api_mcp_tools_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Mcp Tools Api Mcp Tools Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/invoke": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Invoke Mcp Tool",
+        "description": "Execute an MCP tool dynamically with schema validation.",
+        "operationId": "invoke_mcp_tool_api_mcp_invoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MCPInvokeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Invoke Mcp Tool Api Mcp Invoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Mcp Jsonrpc Transport",
+        "description": "Native Model Context Protocol (MCP) JSON-RPC 2.0 HTTP transport.",
+        "operationId": "mcp_jsonrpc_transport_mcp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Mcp Jsonrpc Transport Mcp Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/handshake/tasks": {
+      "get": {
+        "tags": [
+          "handshake",
+          "evaluation"
+        ],
+        "summary": "List Handshake Tasks",
+        "description": "List SWE-bench and Handshake AI physical simulation benchmark challenge tasks.",
+        "operationId": "list_handshake_tasks_api_handshake_tasks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Handshake Tasks Api Handshake Tasks Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/handshake/evaluate": {
+      "post": {
+        "tags": [
+          "handshake",
+          "evaluation"
+        ],
+        "summary": "Evaluate Handshake Task",
+        "description": "Evaluate candidate patch against Handshake AI test harness and persist result in DB.",
+        "operationId": "evaluate_handshake_task_api_handshake_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandshakeEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Evaluate Handshake Task Api Handshake Evaluate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Get Prometheus Metrics",
+        "description": "Live Prometheus metrics endpoint populated via HTTP telemetry middleware.",
+        "operationId": "get_prometheus_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "ui"
+        ],
+        "summary": "Get Mission Control Dashboard",
+        "operationId": "get_mission_control_dashboard__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CFDSurrogateRequest": {
+        "properties": {
+          "airfoil_code": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 4,
+            "title": "Airfoil Code",
+            "default": "2412"
+          },
+          "alpha_deg": {
+            "type": "number",
+            "title": "Alpha Deg",
+            "default": 4.0
+          },
+          "reynolds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reynolds",
+            "default": 1000000.0
+          }
+        },
+        "type": "object",
+        "title": "CFDSurrogateRequest"
+      },
+      "CompressibleGasRequest": {
+        "properties": {
+          "mach": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Mach",
+            "default": 2.0
+          },
+          "gamma": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Gamma",
+            "default": 1.4
+          }
+        },
+        "type": "object",
+        "title": "CompressibleGasRequest"
+      },
+      "FlightSimulationRequest": {
+        "properties": {
+          "initial_mass_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Initial Mass Kg",
+            "default": 50.0
+          },
+          "dry_mass_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Dry Mass Kg",
+            "default": 30.0
+          },
+          "thrust_n": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Thrust N",
+            "default": 2500.0
+          },
+          "burn_time_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Burn Time S",
+            "default": 3.5
+          },
+          "drag_area_m2": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Drag Area M2",
+            "default": 0.035
+          }
+        },
+        "type": "object",
+        "title": "FlightSimulationRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HandshakeEvaluateRequest": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "Handshake benchmark task identifier",
+            "default": "AERO-001"
+          },
+          "patch_text": {
+            "type": "string",
+            "title": "Patch Text",
+            "description": "Unified candidate patch code",
+            "default": ""
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Model identifier",
+            "default": "Candidate-Agent"
+          }
+        },
+        "type": "object",
+        "title": "HandshakeEvaluateRequest"
+      },
+      "MCPInvokeRequest": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name",
+            "description": "Registered MCP tool name"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments",
+            "description": "Arguments dictionary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name"
+        ],
+        "title": "MCPInvokeRequest"
+      },
+      "OrbitPredictionRequest": {
+        "properties": {
+          "norad_cat_id": {
+            "type": "integer",
+            "title": "Norad Cat Id",
+            "default": 25544
+          },
+          "observer_lat_deg": {
+            "type": "number",
+            "title": "Observer Lat Deg",
+            "default": 17.385
+          },
+          "observer_lon_deg": {
+            "type": "number",
+            "title": "Observer Lon Deg",
+            "default": 78.4867
+          },
+          "observer_alt_m": {
+            "type": "number",
+            "title": "Observer Alt M",
+            "default": 542.0
+          }
+        },
+        "type": "object",
+        "title": "OrbitPredictionRequest"
+      },
+      "OrbitalTransferRequest": {
+        "properties": {
+          "r1_km": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "R1 Km",
+            "default": 6700.0
+          },
+          "r2_km": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "R2 Km",
+            "default": 42164.0
+          },
+          "inclination_deg": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Inclination Deg",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "OrbitalTransferRequest"
+      },
+      "SimulationRunCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": "Suborbital Sounding Flight"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "COMPLETED"
+          },
+          "apogee_km": {
+            "type": "number",
+            "title": "Apogee Km",
+            "default": 120.5
+          },
+          "max_mach": {
+            "type": "number",
+            "title": "Max Mach",
+            "default": 3.85
+          },
+          "max_q_kpa": {
+            "type": "number",
+            "title": "Max Q Kpa",
+            "default": 48.2
+          },
+          "delta_v_m_s": {
+            "type": "number",
+            "title": "Delta V M S",
+            "default": 2150.0
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S",
+            "default": 285.0
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "title": "SimulationRunCreateRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -4,13 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    image: perfectalone375/aerospace-ops-gateway:latest
+    image: perfectalone375/aerospace-ops-gateway:0.2.0
     container_name: aerospace-mission-gateway
     ports:
       - "8080:8080"
     environment:
       - APP_ENV=production
       - LOG_LEVEL=info
+      - AERO_OPS_DB_PATH=/app/data/aero_ops.db
+    volumes:
+      - aero_ops_data:/app/data
     restart: unless-stopped
     networks:
       - aero-mesh
@@ -19,6 +22,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+volumes:
+  aero_ops_data:
 
 networks:
   aero-mesh:

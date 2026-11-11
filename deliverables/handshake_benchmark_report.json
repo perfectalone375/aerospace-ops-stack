@@ -1,0 +1,142 @@
+{
+  "sandbox_engine": "isolated-subprocess-ast-v2",
+  "total_tasks": 8,
+  "results": [
+    {
+      "task_id": "AERO-001",
+      "title": "Prandtl-Glauert Sonic Singularity Hyperbolic Tangent Bridge",
+      "domain": "Aerodynamics / Compressibility Singularities",
+      "difficulty": "Hard",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 63.89
+      }
+    },
+    {
+      "task_id": "AERO-002",
+      "title": "Ground Station Zenith Pass Azimuth 360-Degree Angle Unwrapping",
+      "domain": "Astrodynamics / Coordinate Branch Cuts",
+      "difficulty": "Medium",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 63.65
+      }
+    },
+    {
+      "task_id": "AERO-003",
+      "title": "NACA Airfoil Cosine Clustering Discretization & Kutta Condition",
+      "domain": "Computational Fluid Dynamics / Discretization",
+      "difficulty": "Hard",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "1/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 67.16
+      }
+    },
+    {
+      "task_id": "AERO-004",
+      "title": "Euler-Bernoulli Center-Load Beam Maximum Deflection Coefficient Fix",
+      "domain": "Structural Mechanics / Analytical Deflection",
+      "difficulty": "Medium",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/1",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "1/1",
+        "pass_to_pass": "2/2",
+        "latency_ms": 64.21
+      }
+    },
+    {
+      "task_id": "AERO-005",
+      "title": "Solid Rocket Motor Burnout Non-Negative Propellant Mass Clamp",
+      "domain": "Propulsion & Ballistics / Mass Depletion",
+      "difficulty": "Hard",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 65.93
+      }
+    },
+    {
+      "task_id": "AERO-006",
+      "title": "Euler Angle Extraction Singularity Protection at Pitch +/- 90 Degrees",
+      "domain": "6-DoF Kinematics / Gimbal Lock Singularities",
+      "difficulty": "Hard",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 63.9
+      }
+    },
+    {
+      "task_id": "AERO-007",
+      "title": "2D Supersonic Oblique Shock Detachment Boundary Pre-Check",
+      "domain": "Compressible Fluid Dynamics / Oblique Shock Waves",
+      "difficulty": "Hard",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 70.22
+      }
+    },
+    {
+      "task_id": "AERO-008",
+      "title": "3-Impulse Bi-Elliptic Orbit Transfer Efficiency Crossover Criterion",
+      "domain": "Astrodynamics / Orbital Transfers",
+      "difficulty": "Medium",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "2/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 64.45
+      }
+    }
+  ]
+}
