@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aerospace-ops-stack"
-version = "0.2.0"
+version = "0.3.0"
 description = "Enterprise Aerospace Microservices Stack, SQLite WAL Persistence, JSON-RPC 2.0 MCP Central Portal & Handshake AI Sandboxed Code Evaluator."
 readme = "README.md"
 requires-python = ">=3.10"

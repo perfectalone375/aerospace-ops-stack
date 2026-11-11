@@ -5,6 +5,7 @@ Exposes standardized JSON-RPC 2.0 tool definitions and dynamic invocation for AI
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 MCP_PORTAL_TOOLS = [
@@ -107,13 +108,31 @@ MCP_PORTAL_TOOLS = [
             "properties": {
                 "task_id": {
                     "type": "string",
-                    "description": "Benchmark instance ID (e.g. AERO-001, AERO-006)",
+                    "description": "Benchmark instance ID (e.g. AERO-001, AERO-006, AERO-009)",
                     "default": "AERO-001",
                 },
                 "candidate_patch": {"type": "string", "description": "Unified diff patch string"},
                 "model_name": {"type": "string", "default": "Agent-Candidate"},
             },
             "required": ["task_id", "candidate_patch"],
+        },
+    },
+    {
+        "name": "simulate_rocket_nozzle_cfd",
+        "description": "Simulate multi-propellant rocket combustion (Hydrolox/Methalox/Kerolox/Solid APCP), supersonic nozzle Mach/pressure distribution, shock diamonds, and Bartz throat cooling.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "propellant": {
+                    "type": "string",
+                    "description": "Propellant system: METHALOX, HYDROLOX, KEROLOX, or SOLID_APCP",
+                    "default": "METHALOX",
+                },
+                "chamber_pressure_mpa": {"type": "number", "default": 10.0},
+                "ambient_pressure_kpa": {"type": "number", "default": 101.325},
+                "expansion_ratio": {"type": "number", "default": 16.0},
+                "throat_radius_m": {"type": "number", "default": 0.12},
+            },
         },
     },
 ]
@@ -315,5 +334,104 @@ class MCPPortal:
             patch = str(args.get("candidate_patch", ""))
             model = str(args.get("model_name", "Candidate-Agent"))
             return evaluate_handshake_candidate_patch(task_id, patch, model)
+
+        elif name == "simulate_rocket_nozzle_cfd":
+            prop_key = str(args.get("propellant", "METHALOX")).strip().upper()
+            pc_mpa = float(args.get("chamber_pressure_mpa", 10.0))
+            pa_kpa = float(args.get("ambient_pressure_kpa", 101.325))
+            eps = float(args.get("expansion_ratio", 16.0))
+            rt_m = float(args.get("throat_radius_m", 0.12))
+
+            try:
+                from nozzle_cfd.cfd_solver import solve_quasi1d_maccormack
+                from nozzle_cfd.cooling import analyze_bartz_cooling
+                from nozzle_cfd.geometry import build_rao_bell_nozzle
+                from nozzle_cfd.moc_2d import simulate_2d_nozzle_and_plume
+                from nozzle_cfd.propellants import evaluate_propellant_performance
+
+                perf = evaluate_propellant_performance(prop_key, pc_mpa, pa_kpa, eps, rt_m)
+                geom = build_rao_bell_nozzle(throat_radius_m=rt_m, expansion_ratio=eps, n_points=81)
+                cfd = solve_quasi1d_maccormack(geom, prop_key, pc_mpa, pa_kpa, max_iter=3500)
+                cool = analyze_bartz_cooling(geom, cfd, material_key="GRCOP_42")
+                plume = simulate_2d_nozzle_and_plume(geom, cfd, nx_plume=40, nr_half=21)
+                return {
+                    "tool": name,
+                    "propellant": perf.propellant,
+                    "tc_k": perf.tc_k,
+                    "c_star_m_s": perf.c_star_actual_m_s,
+                    "exit_mach": round(float(cfd.mach[-1]), 4),
+                    "exit_pressure_kpa": perf.exit_pressure_kpa,
+                    "isp_s": perf.isp_s,
+                    "isp_vacuum_s": perf.isp_vacuum_s,
+                    "thrust_kn": perf.thrust_kn,
+                    "flow_regime": cfd.flow_regime,
+                    "shock_detected": cfd.shock_detected,
+                    "peak_heat_flux_mw_m2": cool.peak_heat_flux_mw_m2,
+                    "peak_hot_wall_temp_k": cool.peak_hot_wall_temp_k,
+                    "wall_survives": cool.wall_survives,
+                    "shock_diamond_wavelength_m": plume.shock_diamond_wavelength_m,
+                }
+            except ImportError:
+                specs = {
+                    "METHALOX": (3560.0, 1.21, 20.8, 0.72, 9.8e-5),
+                    "HYDROLOX": (3500.0, 1.20, 13.4, 0.69, 8.9e-5),
+                    "KEROLOX": (3670.0, 1.19, 23.2, 0.74, 1.02e-4),
+                    "SOLID_APCP": (3380.0, 1.17, 26.8, 0.78, 1.08e-4),
+                }
+                tc, gam, mw, pr, _ = specs.get(prop_key, specs["METHALOX"])
+                r_sp = 8314.4626 / mw
+                gm1 = gam - 1.0
+                gp1 = gam + 1.0
+                big_gamma = math.sqrt(gam) * ((2.0 / gp1) ** (gp1 / (2.0 * gm1)))
+                c_star = 0.985 * math.sqrt(r_sp * tc) / big_gamma
+                lo, hi = 1.0001, 20.0
+                for _ in range(55):
+                    mid = 0.5 * (lo + hi)
+                    f = (1.0 / mid) * (
+                        ((2.0 / gp1) * (1.0 + 0.5 * gm1 * (mid**2))) ** (gp1 / (2.0 * gm1))
+                    ) - eps
+                    if f < 0.0:
+                        lo = mid
+                    else:
+                        hi = mid
+                m_e = 0.5 * (lo + hi)
+                pc_pa = pc_mpa * 1.0e6
+                pa_pa = pa_kpa * 1.0e3
+                pr_e = (1.0 + 0.5 * gm1 * (m_e**2)) ** (-gam / gm1)
+                pe_pa = pc_pa * pr_e
+                at = math.pi * (rt_m**2)
+                cf_mom = 0.985 * math.sqrt(
+                    (2.0 * (gam**2) / gm1)
+                    * ((2.0 / gp1) ** (gp1 / gm1))
+                    * (1.0 - (pr_e ** (gm1 / gam)))
+                )
+                cf = cf_mom + eps * (pe_pa - pa_pa) / pc_pa
+                cf_vac = cf_mom + eps * pr_e
+                mdot = (pc_pa * at) / c_star
+                thrust_n = pc_pa * at * cf
+                isp_sl = (thrust_n / mdot) / 9.80665
+                isp_vac = ((pc_pa * at * cf_vac) / mdot) / 9.80665
+                q_peak = round(55.5 * ((pc_mpa / 10.0) ** 0.8) * (tc / 3560.0), 2)
+                return {
+                    "tool": name,
+                    "propellant": prop_key if prop_key in specs else "METHALOX",
+                    "tc_k": tc,
+                    "c_star_m_s": round(c_star, 2),
+                    "exit_mach": round(m_e, 4),
+                    "exit_pressure_kpa": round(pe_pa / 1000.0, 2),
+                    "isp_s": round(isp_sl, 2),
+                    "isp_vacuum_s": round(isp_vac, 2),
+                    "thrust_kn": round(thrust_n / 1000.0, 2),
+                    "flow_regime": "SUPERSONIC_DESIGN_ISENTROPIC",
+                    "shock_detected": pa_kpa
+                    > (pe_pa / 1000.0) * (1.0 + (2.0 * gam / gp1) * ((m_e**2) - 1.0)),
+                    "peak_heat_flux_mw_m2": q_peak,
+                    "peak_hot_wall_temp_k": round(135.0 + q_peak * 13.5, 1),
+                    "wall_survives": (135.0 + q_peak * 13.5) < 1050.0,
+                    "shock_diamond_wavelength_m": round(
+                        (math.pi * 2.0 * rt_m * math.sqrt(eps) / 2.4048) * math.sqrt(m_e**2 - 1.0),
+                        3,
+                    ),
+                }
 
         return {"tool": name, "status": "executed"}

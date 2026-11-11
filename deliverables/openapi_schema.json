@@ -249,6 +249,50 @@
         }
       }
     },
+    "/api/simulation/nozzle-cfd": {
+      "post": {
+        "tags": [
+          "telemetry"
+        ],
+        "summary": "Simulate Nozzle Cfd Endpoint",
+        "description": "Run multi-propellant rocket nozzle CFD, axial Mach/pressure profile, and Bartz cooling.",
+        "operationId": "simulate_nozzle_cfd_endpoint_api_simulation_nozzle_cfd_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NozzleCFDRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Simulate Nozzle Cfd Endpoint Api Simulation Nozzle Cfd Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/simulation/full-mission": {
       "post": {
         "tags": [
@@ -827,6 +871,45 @@
           "tool_name"
         ],
         "title": "MCPInvokeRequest"
+      },
+      "NozzleCFDRequest": {
+        "properties": {
+          "propellant": {
+            "type": "string",
+            "title": "Propellant",
+            "default": "METHALOX"
+          },
+          "chamber_pressure_mpa": {
+            "type": "number",
+            "maximum": 40.0,
+            "exclusiveMinimum": 0.2,
+            "title": "Chamber Pressure Mpa",
+            "default": 10.0
+          },
+          "ambient_pressure_kpa": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Ambient Pressure Kpa",
+            "default": 101.325
+          },
+          "expansion_ratio": {
+            "type": "number",
+            "maximum": 120.0,
+            "minimum": 1.5,
+            "title": "Expansion Ratio",
+            "default": 16.0
+          },
+          "throat_radius_m": {
+            "type": "number",
+            "maximum": 2.0,
+            "exclusiveMinimum": 0.01,
+            "title": "Throat Radius M",
+            "default": 0.12
+          }
+        },
+        "type": "object",
+        "title": "NozzleCFDRequest"
       },
       "OrbitPredictionRequest": {
         "properties": {

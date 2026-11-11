@@ -68,8 +68,8 @@
         <div class="logo-group">
             <div class="logo-badge">AERO-OPS</div>
             <div>
-                <h1 style="font-size: 1.15rem; font-weight: 800;">Mission Operations Platform v0.2.0</h1>
-                <p style="font-size: 0.75rem; color: var(--text-muted);">Cloud-Native Microservices • SQLite WAL • JSON-RPC 2.0 MCP • Sandboxed Handshake AI</p>
+                <h1 style="font-size: 1.15rem; font-weight: 800;">Mission Operations Platform v0.3.0</h1>
+                <p style="font-size: 0.75rem; color: var(--text-muted);">Cloud-Native Microservices • SQLite WAL • JSON-RPC 2.0 MCP • Multi-Propellant CFD • AST Sandbox</p>
             </div>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
@@ -79,7 +79,7 @@
             </div>
             <div class="status-pill" style="border-color: var(--purple); color: var(--purple); background: rgba(168, 85, 247, 0.1);">
                 <div class="status-dot" style="background-color: var(--purple); box-shadow: 0 0 8px var(--purple);"></div>
-                <span>MCP JSON-RPC 2.0 (6 TOOLS)</span>
+                <span>MCP JSON-RPC 2.0 (7 TOOLS)</span>
             </div>
             <div class="status-pill">
                 <div class="status-dot"></div>
@@ -240,6 +240,7 @@
                     <option value="predict_transonic_divergence">predict_transonic_divergence (Mach Divergence)</option>
                     <option value="calculate_bielliptic_transfer">calculate_bielliptic_transfer (3-Impulse Transfer)</option>
                     <option value="evaluate_handshake_ai_task">evaluate_handshake_ai_task (AST Sandbox Patch)</option>
+                    <option value="simulate_rocket_nozzle_cfd">simulate_rocket_nozzle_cfd (Multi-Propellant CFD)</option>
                 </select>
             </div>
             <textarea id="mcpArgsInput" rows="4"></textarea>
@@ -268,6 +269,8 @@
                         <option value="AERO-006">AERO-006: Unit Quaternion Euler Extraction Gimbal Lock Guard</option>
                         <option value="AERO-007">AERO-007: Supersonic Oblique Shock Detachment Beta Solver</option>
                         <option value="AERO-008">AERO-008: Bi-Elliptic vs Hohmann Delta-V Crossover Ratio</option>
+                        <option value="AERO-009">AERO-009: MacCormack CFD CFL Wave-Speed Stability Limit</option>
+                        <option value="AERO-010">AERO-010: Bartz Throat Regenerative Thermal Network</option>
                     </select>
                     <div id="handshakeTaskDesc" style="background: #0b1120; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
                         Select a task to inspect problem statement and fail-to-pass specifications.
@@ -347,6 +350,66 @@
                 [STATUS] Ready. Click "Run End-to-End Mission" to execute real-time multi-stage simulation across all 4 aerospace physics engines.
             </div>
         </div>
+
+        <!-- Card 9: Multi-Propellant Supersonic Nozzle CFD & Shock Diamond Lab -->
+        <div class="card col-12">
+            <div class="card-header">
+                <div class="card-title">🔥 Supersonic Rocket Nozzle CFD & Shock Diamond Lab (<a href="https://github.com/perfectalone375/nozzle-cfd-propulsion" target="_blank" style="color: #fb923c; text-decoration: none;">nozzle-cfd-propulsion</a>)</div>
+                <button class="btn btn-warn" onclick="runNozzleCFD()">Run Multi-Propellant CFD</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Propellant Combination</label>
+                    <select id="nozzlePropSelect" onchange="runNozzleCFD()">
+                        <option value="METHALOX">METHALOX (LOX / LCH4)</option>
+                        <option value="HYDROLOX">HYDROLOX (LOX / LH2)</option>
+                        <option value="KEROLOX">KEROLOX (LOX / RP-1)</option>
+                        <option value="SOLID_APCP">SOLID APCP (Composite)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Chamber Pressure (<span id="nozzlePcLabel">10.0 MPa</span>)</label>
+                    <input id="nozzlePcSlider" type="range" min="1.0" max="25.0" step="0.5" value="10.0" oninput="document.getElementById('nozzlePcLabel').innerText = parseFloat(this.value).toFixed(1) + ' MPa'; runNozzleCFD();" />
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Ambient / Flight Condition</label>
+                    <select id="nozzlePaSelect" onchange="runNozzleCFD()">
+                        <option value="101.325">Sea Level (101.3 kPa — Overexpanded)</option>
+                        <option value="26.5">10 km Altitude (26.5 kPa — Underexpanded)</option>
+                        <option value="380.0">High Back-Pressure (380 kPa — Normal Shock)</option>
+                        <option value="0.5">Vacuum Space (0.5 kPa)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Nozzle Area Ratio Ae/At</label>
+                    <select id="nozzleEpsSelect" onchange="runNozzleCFD()">
+                        <option value="8">8:1 (Shock Demo Bell)</option>
+                        <option value="16" selected>16:1 (Sea-Level Booster Bell)</option>
+                        <option value="35">35:1 (Sustainer / Core Bell)</option>
+                        <option value="65">65:1 (Vacuum Engine Bell)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem;">
+                <div class="stat-box" style="border-left-color: #fb923c;">
+                    <div class="stat-label">Nozzle Exit Mach</div>
+                    <div class="stat-value" id="val-nozzle-mach">3.44</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #34d399;">
+                    <div class="stat-label">Specific Impulse Isp (Vac)</div>
+                    <div class="stat-value" id="val-nozzle-isp">295.1 s (325 s)</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #f43f5e;">
+                    <div class="stat-label">Peak Bartz Throat Flux</div>
+                    <div class="stat-value" id="val-nozzle-flux">55.5 MW/m²</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #a855f7;">
+                    <div class="stat-label">Flow & Plume Regime</div>
+                    <div class="stat-value" id="val-nozzle-regime" style="font-size: 0.95rem;">OVEREXPANDED SHOCKS</div>
+                </div>
+            </div>
+            <canvas id="nozzleCanvas" style="height: 250px;"></canvas>
+        </div>
     </main>
 
     <footer>
@@ -363,7 +426,8 @@
             "calculate_oblique_shock": '{"mach1": 2.5, "theta_deg": 12.0}',
             "predict_transonic_divergence": '{"mach": 0.82, "cl": 0.3}',
             "calculate_bielliptic_transfer": '{"r1_km": 6700.0, "r2_km": 105000.0, "rb_km": 210000.0}',
-            "evaluate_handshake_ai_task": '{"task_id": "AERO-001", "candidate_patch": "def correct_sonic_singularity(mach: float) -> float:\\n    denom = abs(1.0 - mach**2)\\n    if 0.85 <= mach <= 1.15:\\n        return 0.25 + 0.55 * (1.0 - math.tanh(denom / 0.15))\\n    return 0.25 / math.sqrt(max(0.05, denom))", "model_name": "Claude-3.5-Sonnet"}'
+            "evaluate_handshake_ai_task": '{"task_id": "AERO-009", "candidate_patch": "def compute_stable_cfd_timestep(dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45) -> float:\\n    if dx_m <= 0.0 or sound_speed_mps <= 0.0:\\n        raise ValueError(\\"positive\\")\\n    safe_cfl = max(0.05, min(0.95, float(cfl_target)))\\n    return safe_cfl * float(dx_m) / (abs(float(velocity_mps)) + float(sound_speed_mps))", "model_name": "Claude-3.5-Sonnet"}',
+            "simulate_rocket_nozzle_cfd": '{"propellant": "METHALOX", "chamber_pressure_mpa": 10.0, "ambient_pressure_kpa": 101.325, "expansion_ratio": 16.0}'
         };
 
         const handshakeTaskMap = {
@@ -406,6 +470,16 @@
                 desc: "3-Impulse Bi-Elliptic vs Hohmann Crossover Criterion: Recommend fuel-optimal trajectory when r2/r1 > 11.94.",
                 buggy: "def select_optimal_orbital_transfer(r1_km: float, r2_km: float, rb_km: float) -> dict:\n    # BUG: Hardcodes 'hohmann' without evaluating 3-impulse bielliptic savings\n    mu = 398600.4418\n    a_h = 0.5 * (r1_km + r2_km)\n    dv_h = abs(math.sqrt(mu * (2/r1_km - 1/a_h)) - math.sqrt(mu/r1_km)) + abs(math.sqrt(mu/r2_km) - math.sqrt(mu * (2/r2_km - 1/a_h)))\n    return {'recommended': 'hohmann', 'hohmann_dv_km_s': dv_h, 'bielliptic_dv_km_s': dv_h * 1.1}",
                 gold: "def select_optimal_orbital_transfer(r1_km: float, r2_km: float, rb_km: float) -> dict:\n    mu = 398600.4418\n    a_h = 0.5 * (r1_km + r2_km)\n    dv_h = abs(math.sqrt(mu * (2.0 / r1_km - 1.0 / a_h)) - math.sqrt(mu / r1_km)) + abs(math.sqrt(mu / r2_km) - math.sqrt(mu * (2.0 / r2_km - 1.0 / a_h)))\n    a1, a2 = 0.5 * (r1_km + rb_km), 0.5 * (rb_km + r2_km)\n    dv_b = abs(math.sqrt(mu * (2.0 / r1_km - 1.0 / a1)) - math.sqrt(mu / r1_km)) + abs(math.sqrt(mu * (2.0 / rb_km - 1.0 / a2)) - math.sqrt(mu * (2.0 / rb_km - 1.0 / a1))) + abs(math.sqrt(mu / r2_km) - math.sqrt(mu * (2.0 / r2_km - 1.0 / a2)))\n    return {'recommended': 'bielliptic' if dv_b < dv_h else 'hohmann', 'hohmann_dv_km_s': dv_h, 'bielliptic_dv_km_s': dv_b}"
+            },
+            "AERO-009": {
+                desc: "MacCormack Explicit CFD CFL Timestep Stability Limit: Enforce dt = cfl * dx / (|V| + a) so acoustic waves never jump over a grid cell.",
+                buggy: "def compute_stable_cfd_timestep(dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45) -> float:\n    # BUG: Ignores local sound speed and reverse flow\n    return dx_m / max(1.0, velocity_mps)",
+                gold: "def compute_stable_cfd_timestep(dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45) -> float:\n    if dx_m <= 0.0 or sound_speed_mps <= 0.0:\n        raise ValueError('Grid spacing and sound speed must be positive')\n    safe_cfl = max(0.05, min(0.95, float(cfl_target)))\n    max_wave_speed = abs(float(velocity_mps)) + float(sound_speed_mps)\n    return safe_cfl * float(dx_m) / max_wave_speed"
+            },
+            "AERO-010": {
+                desc: "Bartz Nozzle Throat Regenerative Cooling Resistance Network: Include hot-gas film, wall conduction (t/k), and coolant side (1/hc) to flag Inconel overheating.",
+                buggy: "def evaluate_regenerative_wall_thermal_margin(t_aw_k: float, t_cool_k: float, hg: float, hc: float, k_wall: float, t_wall_m: float, t_limit_k: float) -> dict:\n    # BUG: Neglects wall conduction resistance t_wall / k_wall\n    twg = t_cool_k + 50.0\n    return {'heat_flux_mw_m2': 10.0, 'hot_wall_temp_k': twg, 'thermal_margin_k': t_limit_k - twg, 'survives': twg < t_limit_k}",
+                gold: "def evaluate_regenerative_wall_thermal_margin(t_aw_k: float, t_cool_k: float, hg: float, hc: float, k_wall: float, t_wall_m: float, t_limit_k: float) -> dict:\n    r_total = (1.0 / max(1e-6, hg)) + (t_wall_m / max(1e-6, k_wall)) + (1.0 / max(1e-6, hc))\n    q_w_m2 = max(0.0, (t_aw_k - t_cool_k) / r_total)\n    twg = t_cool_k + q_w_m2 * ((t_wall_m / max(1e-6, k_wall)) + (1.0 / max(1e-6, hc)))\n    margin = t_limit_k - twg\n    return {'heat_flux_mw_m2': q_w_m2 / 1e6, 'hot_wall_temp_k': twg, 'thermal_margin_k': margin, 'survives': margin > 0.0}"
             }
         };
 
@@ -445,6 +519,10 @@
             if (tool === "calculate_bielliptic_transfer") {
                 const r1 = args.r1_km || 6700, r2 = args.r2_km || 105000, rb = args.rb_km || 210000;
                 return { tool, r1_km: r1, r2_km: r2, rb_km: rb, total_delta_v_km_s: 3.84, is_more_efficient_than_hohmann: r2 / r1 > 11.94 };
+            }
+            if (tool === "simulate_rocket_nozzle_cfd") {
+                const p = args.propellant || "METHALOX";
+                return { tool, propellant: p, chamber_pressure_mpa: args.chamber_pressure_mpa || 10.0, exit_mach: 3.44, isp_s: p === "HYDROLOX" ? 369.3 : 295.1, mode: "client-physics-fallback" };
             }
             return { tool, status: "EXECUTED_IN_BROWSER_SANDBOX", arguments: args };
         }
@@ -759,12 +837,160 @@
             log.innerText = "[DEMO SUCCESS] Multi-stage mission telemetry verified: Propulsion c*=1685.7 m/s -> Sounding Apogee 798.5 km -> NACA 23012 L/D=64.55 -> Hohmann LEO Insertion dV=115.7 m/s.";
         }
 
+        function drawNozzlePlumeCanvas(profile, shockInNozzle, peKpa, paKpa) {
+            const canvas = document.getElementById("nozzleCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            const W = canvas.width, H = canvas.height, midY = H * 0.5;
+            ctx.clearRect(0, 0, W, H);
+
+            const nozzleEndX = W * 0.42;
+            const maxEps = profile[profile.length - 1].area_ratio || 16.0;
+            const maxR = Math.sqrt(maxEps);
+            const rScale = (H * 0.34) / Math.max(2.0, maxR);
+
+            // Render internal colored nozzle Mach slices
+            for (let i = 0; i < profile.length - 1; i++) {
+                const x0 = (i / (profile.length - 1)) * nozzleEndX;
+                const x1 = ((i + 1) / (profile.length - 1)) * nozzleEndX + 1;
+                const r0 = Math.sqrt(profile[i].area_ratio) * rScale;
+                const r1 = Math.sqrt(profile[i + 1].area_ratio) * rScale;
+                const m = profile[i].mach;
+                const hue = Math.max(10, Math.min(265, 265 - m * 60));
+                const light = Math.min(72, 22 + m * 13);
+                ctx.fillStyle = `hsl(${hue}, 92%, ${light}%)`;
+                ctx.beginPath();
+                ctx.moveTo(x0, midY - r0); ctx.lineTo(x1, midY - r1);
+                ctx.lineTo(x1, midY + r1); ctx.lineTo(x0, midY + r0);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Render supersonic exhaust plume & Shock Diamonds outside nozzle
+            const exitR = Math.sqrt(maxEps) * rScale;
+            const plumeLen = W - nozzleEndX;
+            const cellPx = Math.max(45, Math.min(130, plumeLen / 4.2));
+            const mismatch = paKpa > 1.0 ? Math.min(1.0, Math.abs(Math.log(Math.max(0.1, peKpa / paKpa)))) : 0.4;
+            for (let dx = 0; dx < plumeLen; dx += 3) {
+                const x = nozzleEndX + dx;
+                const decay = Math.exp(-1.1 * dx / plumeLen);
+                const wave = shockInNozzle ? 0.15 : Math.cos(2 * Math.PI * dx / cellPx);
+                const rPlume = exitR * (1.0 + 0.18 * (peKpa > paKpa ? 1 : -0.4) * (1 - wave) * decay + 0.12 * dx / plumeLen);
+                const intensity = Math.max(0.18, (0.45 + 0.45 * wave * (0.4 + mismatch)) * decay);
+                const gGrad = ctx.createLinearGradient(0, midY - rPlume, 0, midY + rPlume);
+                const coreColor = shockInNozzle ? `rgba(244, 63, 94, ${intensity * 0.65})` : `rgba(253, 224, 71, ${intensity})`;
+                gGrad.addColorStop(0.0, "rgba(15, 23, 42, 0.0)");
+                gGrad.addColorStop(0.25, `rgba(249, 115, 22, ${intensity * 0.7})`);
+                gGrad.addColorStop(0.5, coreColor);
+                gGrad.addColorStop(0.75, `rgba(249, 115, 22, ${intensity * 0.7})`);
+                gGrad.addColorStop(1.0, "rgba(15, 23, 42, 0.0)");
+                ctx.fillStyle = gGrad;
+                ctx.fillRect(x, midY - rPlume, 4, 2 * rPlume);
+            }
+
+            // Nozzle outer contour lines
+            ctx.strokeStyle = "#38bdf8";
+            ctx.lineWidth = 2.5;
+            [-1, 1].forEach(sign => {
+                ctx.beginPath();
+                profile.forEach((pt, idx) => {
+                    const x = (idx / (profile.length - 1)) * nozzleEndX;
+                    const y = midY + sign * Math.sqrt(pt.area_ratio) * rScale;
+                    if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            });
+
+            // Overlay axial Mach profile curve (white dashed)
+            ctx.strokeStyle = "rgba(248, 250, 252, 0.88)";
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            profile.forEach((pt, idx) => {
+                const x = (idx / (profile.length - 1)) * nozzleEndX;
+                const y = H - 14 - Math.min(4.8, pt.mach) * ((H - 28) / 5.0);
+                if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = "#e2e8f0";
+            ctx.font = "11px monospace";
+            ctx.fillText("2D Bell + Shock Diamonds | --- Axial Mach Curve (M=" + profile[profile.length - 1].mach.toFixed(2) + ")", 12, 18);
+        }
+
+        async function runNozzleCFD() {
+            const prop = document.getElementById("nozzlePropSelect").value;
+            const pcMpa = parseFloat(document.getElementById("nozzlePcSlider").value);
+            const paKpa = parseFloat(document.getElementById("nozzlePaSelect").value);
+            const eps = parseFloat(document.getElementById("nozzleEpsSelect").value);
+
+            if (isBackendLive) {
+                try {
+                    const r = await fetch("/api/simulation/nozzle-cfd", {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({propellant: prop, chamber_pressure_mpa: pcMpa, ambient_pressure_kpa: paKpa, expansion_ratio: eps})
+                    });
+                    const d = await r.json();
+                    document.getElementById("val-nozzle-mach").innerText = d.exit_mach.toFixed(2);
+                    document.getElementById("val-nozzle-isp").innerText = d.isp_s.toFixed(1) + " s (" + d.isp_vacuum_s.toFixed(0) + " s vac)";
+                    document.getElementById("val-nozzle-flux").innerText = d.peak_heat_flux_mw_m2.toFixed(1) + " MW/m²";
+                    document.getElementById("val-nozzle-regime").innerText = d.shock_in_nozzle ? "NORMAL SHOCK IN NOZZLE" : d.flow_regime;
+                    drawNozzlePlumeCanvas(d.axial_profile, d.shock_in_nozzle, d.exit_pressure_kpa, paKpa);
+                    return;
+                } catch (_) {}
+            }
+
+            // Standalone client physics mirror for GitHub Pages static demo
+            const specs = {METHALOX: [3560, 1.21, 20.8], HYDROLOX: [3500, 1.20, 13.4], KEROLOX: [3670, 1.19, 23.2], SOLID_APCP: [3380, 1.17, 26.8]};
+            const [tc, gam, mw] = specs[prop] || specs.METHALOX;
+            const gm1 = gam - 1, gp1 = gam + 1;
+            const solveM = (ar, sup) => {
+                if (ar <= 1.0001) return 1.0;
+                let lo = sup ? 1.0001 : 1e-4, hi = sup ? 15.0 : 0.9999;
+                for (let k = 0; k < 45; k++) {
+                    const mid = 0.5 * (lo + hi);
+                    const f = (1 / mid) * Math.pow((2 / gp1) * (1 + 0.5 * gm1 * mid * mid), gp1 / (2 * gm1)) - ar;
+                    if ((sup && f < 0) || (!sup && f > 0)) lo = mid; else hi = mid;
+                }
+                return 0.5 * (lo + hi);
+            };
+            const mSup = solveM(eps, true);
+            const peKpa = pcMpa * 1000 * Math.pow(1 + 0.5 * gm1 * mSup * mSup, -gam / gm1);
+            const peShock = peKpa * (1 + (2 * gam / gp1) * (mSup * mSup - 1));
+            const shockIn = paKpa > peShock;
+            const rSp = 8314.46 / mw;
+            const bigG = Math.sqrt(gam) * Math.pow(2 / gp1, gp1 / (2 * gm1));
+            const cStar = 0.985 * Math.sqrt(rSp * tc) / bigG;
+            const prE = peKpa / (pcMpa * 1000);
+            const cfVac = 0.985 * Math.sqrt((2 * gam * gam / gm1) * Math.pow(2 / gp1, gp1 / gm1) * (1 - Math.pow(prE, gm1 / gam))) + eps * prE;
+            const cfSl = cfVac - eps * (paKpa / (pcMpa * 1000));
+            const ispVac = (cStar * cfVac) / 9.80665;
+            const ispSl = (cStar * cfSl) / 9.80665;
+            const qPeak = 55.5 * Math.pow(pcMpa / 10, 0.8) * (tc / 3560);
+            const profile = [];
+            for (let i = 0; i < 36; i++) {
+                const ar = i <= 10 ? 1 + 2.2 * Math.pow((10 - i) / 10, 2) : 1 + (eps - 1) * Math.pow((i - 10) / 25, 1.4);
+                const m = i <= 10 ? solveM(ar, false) : (shockIn && i >= 22 ? Math.max(0.22, solveM(ar, false) * 1.15) : solveM(ar, true));
+                profile.push({area_ratio: ar, mach: m});
+            }
+            document.getElementById("val-nozzle-mach").innerText = profile[35].mach.toFixed(2);
+            document.getElementById("val-nozzle-isp").innerText = ispSl.toFixed(1) + " s (" + ispVac.toFixed(0) + " s vac)";
+            document.getElementById("val-nozzle-flux").innerText = qPeak.toFixed(1) + " MW/m²";
+            document.getElementById("val-nozzle-regime").innerText = shockIn ? "NORMAL SHOCK IN NOZZLE" : (peKpa < paKpa * 0.85 ? "OVEREXPANDED DIAMONDS" : "UNDEREXPANDED PLUME");
+            drawNozzlePlumeCanvas(profile, shockIn, peKpa, paKpa);
+        }
+
         window.onload = () => {
             drawFlightGraph();
             drawOrbitMap();
             drawCFDChart();
             updateMCPArgs();
             onHandshakeTaskChange();
+            runNozzleCFD();
             detectBackend();
         };
     </script>

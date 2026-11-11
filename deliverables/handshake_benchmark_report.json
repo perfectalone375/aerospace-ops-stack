@@ -1,6 +1,6 @@
 {
   "sandbox_engine": "isolated-subprocess-ast-v2",
-  "total_tasks": 8,
+  "total_tasks": 10,
   "results": [
     {
       "task_id": "AERO-001",
@@ -16,7 +16,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 63.89
+        "latency_ms": 54.6
       }
     },
     {
@@ -33,7 +33,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 63.65
+        "latency_ms": 56.06
       }
     },
     {
@@ -50,7 +50,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 67.16
+        "latency_ms": 55.26
       }
     },
     {
@@ -67,7 +67,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "1/1",
         "pass_to_pass": "2/2",
-        "latency_ms": 64.21
+        "latency_ms": 53.4
       }
     },
     {
@@ -84,7 +84,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 65.93
+        "latency_ms": 58.66
       }
     },
     {
@@ -101,7 +101,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 63.9
+        "latency_ms": 53.87
       }
     },
     {
@@ -118,7 +118,7 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 70.22
+        "latency_ms": 58.69
       }
     },
     {
@@ -135,7 +135,41 @@
         "status": "RESOLVED",
         "fail_to_pass": "2/2",
         "pass_to_pass": "2/2",
-        "latency_ms": 64.45
+        "latency_ms": 56.97
+      }
+    },
+    {
+      "task_id": "AERO-009",
+      "title": "Explicit MacCormack CFL Acoustic Wave-Speed Stability Limit",
+      "domain": "Rocket Propulsion CFD / Numerical Stability",
+      "difficulty": "Medium",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "1/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 52.98
+      }
+    },
+    {
+      "task_id": "AERO-010",
+      "title": "Bartz Hot-Wall Convective Thermal Network & Survival Margin",
+      "domain": "Rocket Thrust Chamber / Bartz Regenerative Cooling",
+      "difficulty": "Medium",
+      "buggy_baseline": {
+        "status": "FAILED",
+        "fail_to_pass": "0/2",
+        "pass_to_pass": "0/2"
+      },
+      "gold_solution": {
+        "status": "RESOLVED",
+        "fail_to_pass": "2/2",
+        "pass_to_pass": "2/2",
+        "latency_ms": 58.02
       }
     }
   ]

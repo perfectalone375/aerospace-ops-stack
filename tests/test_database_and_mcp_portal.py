@@ -129,7 +129,7 @@ def test_database_ai_evaluation_leaderboard():
 def test_mcp_portal_list_tools():
     """Verify registered MCP tool definitions and schemas."""
     tools = MCPPortal.list_tools()
-    assert len(tools) >= 6
+    assert len(tools) >= 7
     names = {t["name"] for t in tools}
     assert "simulate_staged_rocket" in names
     assert "propagate_attitude_quaternions" in names
@@ -137,6 +137,7 @@ def test_mcp_portal_list_tools():
     assert "predict_transonic_divergence" in names
     assert "calculate_bielliptic_transfer" in names
     assert "evaluate_handshake_ai_task" in names
+    assert "simulate_rocket_nozzle_cfd" in names
 
 
 def test_mcp_portal_invocations():
@@ -168,7 +169,16 @@ def test_mcp_portal_invocations():
     assert trans_res["tool"] == "calculate_bielliptic_transfer"
     assert trans_res["total_delta_v_km_s"] > 0
 
-    # 4. Unknown tool error handling
+    # 4. Rocket Nozzle CFD simulation
+    nozzle_res = MCPPortal.invoke_tool(
+        "simulate_rocket_nozzle_cfd",
+        {"propellant": "HYDROLOX", "chamber_pressure_mpa": 10.0, "expansion_ratio": 16.0},
+    )
+    assert nozzle_res["tool"] == "simulate_rocket_nozzle_cfd"
+    assert nozzle_res["isp_vacuum_s"] > 380.0
+    assert nozzle_res["exit_mach"] > 3.0
+
+    # 5. Unknown tool error handling
     with pytest.raises(ValueError, match="Unknown MCP tool"):
         MCPPortal.invoke_tool("non_existent_tool", {})
 
@@ -179,10 +189,10 @@ def test_mcp_portal_invocations():
 
 
 def test_handshake_ai_registry_and_evaluation():
-    """Verify all 8 Handshake tasks fail on buggy starter code and pass on gold fixes in isolated AST sandbox."""
-    assert len(HANDSHAKE_TASKS) == 8
+    """Verify all 10 Handshake tasks fail on buggy starter code and pass on gold fixes."""
+    assert len(HANDSHAKE_TASKS) == 10
     task_ids = [t["task_id"] for t in HANDSHAKE_TASKS]
-    assert task_ids == [f"AERO-00{i}" for i in range(1, 9)]
+    assert task_ids == [f"AERO-{i:03d}" for i in range(1, 11)]
 
     for task in HANDSHAKE_TASKS:
         tid = task["task_id"]
@@ -340,7 +350,16 @@ def test_gateway_handshake_evaluation_and_leaderboard():
     tasks_resp = client.get("/api/handshake/tasks")
     assert tasks_resp.status_code == 200
     data = tasks_resp.json()
-    assert data["count"] == 8
+    assert data["count"] == 10
+
+    nozzle_resp = client.post(
+        "/api/simulation/nozzle-cfd",
+        json={"propellant": "METHALOX", "chamber_pressure_mpa": 10.0, "expansion_ratio": 16.0},
+    )
+    assert nozzle_resp.status_code == 200
+    nozzle_data = nozzle_resp.json()
+    assert nozzle_data["exit_mach"] > 3.0
+    assert len(nozzle_data["axial_profile"]) == 36
 
     aero6_gold = next(t for t in data["tasks"] if t["task_id"] == "AERO-006")["reference_solution"]
 

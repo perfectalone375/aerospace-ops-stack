@@ -362,6 +362,85 @@ HANDSHAKE_TASKS: list[dict[str, Any]] = [
             "    return {'recommended': rec, 'hohmann_dv_km_s': dv_h, 'bielliptic_dv_km_s': dv_b}\n"
         ),
     },
+    {
+        "task_id": "AERO-009",
+        "domain": "Rocket Propulsion CFD / Numerical Stability",
+        "title": "Explicit MacCormack CFL Acoustic Wave-Speed Stability Limit",
+        "difficulty": "Medium",
+        "entry_point": "compute_stable_cfd_timestep",
+        "signature": (
+            "def compute_stable_cfd_timestep("
+            "dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45"
+            ") -> float:"
+        ),
+        "problem_statement": (
+            "Explicit MacCormack nozzle solver diverges to NaN during hypersonic exhaust expansion "
+            "because the fixed denominator ignores local acoustic wave speed |V| + a and clamps "
+            "CFL above 1.0. Enforce Courant-Friedrichs-Lewy bound cfl < 1.0 using max characteristic "
+            "speed (|velocity| + sound_speed)."
+        ),
+        "fail_to_pass_tests": [
+            "test_supersonic_cfl_stability_bound",
+            "test_reverse_flow_abs_velocity_guard",
+        ],
+        "pass_to_pass_tests": [
+            "test_zero_velocity_acoustic_timestep",
+            "test_linear_dx_grid_scaling",
+        ],
+        "starter_buggy_code": (
+            "def compute_stable_cfd_timestep(dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45) -> float:\n"
+            "    # BUG: Ignores local velocity + sound speed and allows CFL >= 1.0 blowup\n"
+            "    return dx_m / max(1.0, velocity_mps)\n"
+        ),
+        "reference_solution": (
+            "def compute_stable_cfd_timestep(dx_m: float, velocity_mps: float, sound_speed_mps: float, cfl_target: float = 0.45) -> float:\n"
+            "    if dx_m <= 0.0 or sound_speed_mps <= 0.0:\n"
+            "        raise ValueError('Grid spacing and sound speed must be positive')\n"
+            "    safe_cfl = max(0.05, min(0.95, float(cfl_target)))\n"
+            "    max_wave_speed = abs(float(velocity_mps)) + float(sound_speed_mps)\n"
+            "    return safe_cfl * float(dx_m) / max_wave_speed\n"
+        ),
+    },
+    {
+        "task_id": "AERO-010",
+        "domain": "Rocket Thrust Chamber / Bartz Regenerative Cooling",
+        "title": "Bartz Hot-Wall Convective Thermal Network & Survival Margin",
+        "difficulty": "Medium",
+        "entry_point": "evaluate_regenerative_wall_thermal_margin",
+        "signature": (
+            "def evaluate_regenerative_wall_thermal_margin("
+            "t_aw_k: float, t_cool_k: float, hg: float, hc: float, k_wall: float, t_wall_m: float, t_limit_k: float"
+            ") -> dict:"
+        ),
+        "problem_statement": (
+            "Nozzle thermal designer neglects conduction wall resistance (t_wall / k_wall) and coolant "
+            "convection resistance (1 / hc), falsely predicting safe liner wall temperatures on low-conductivity "
+            "alloys. Solve the full 1D series thermal resistance network for q'' [MW/m2], hot-gas wall Twg [K], "
+            "and safety margin (t_limit_k - Twg)."
+        ),
+        "fail_to_pass_tests": [
+            "test_series_wall_conduction_temperature_jump",
+            "test_low_conductivity_inconel_overheat_detection",
+        ],
+        "pass_to_pass_tests": [
+            "test_high_conductivity_copper_survival",
+            "test_zero_heat_flux_isothermal_limit",
+        ],
+        "starter_buggy_code": (
+            "def evaluate_regenerative_wall_thermal_margin(t_aw_k: float, t_cool_k: float, hg: float, hc: float, k_wall: float, t_wall_m: float, t_limit_k: float) -> dict:\n"
+            "    # BUG: Assumes infinite wall conductivity and infinite coolant HTC -> underpredicts Twg!\n"
+            "    twg = t_cool_k + 50.0\n"
+            "    return {'heat_flux_mw_m2': 10.0, 'hot_wall_temp_k': twg, 'thermal_margin_k': t_limit_k - twg, 'survives': twg < t_limit_k}\n"
+        ),
+        "reference_solution": (
+            "def evaluate_regenerative_wall_thermal_margin(t_aw_k: float, t_cool_k: float, hg: float, hc: float, k_wall: float, t_wall_m: float, t_limit_k: float) -> dict:\n"
+            "    r_total = (1.0 / max(1e-6, hg)) + (t_wall_m / max(1e-6, k_wall)) + (1.0 / max(1e-6, hc))\n"
+            "    q_w_m2 = max(0.0, (t_aw_k - t_cool_k) / r_total)\n"
+            "    twg = t_cool_k + q_w_m2 * ((t_wall_m / max(1e-6, k_wall)) + (1.0 / max(1e-6, hc)))\n"
+            "    margin = t_limit_k - twg\n"
+            "    return {'heat_flux_mw_m2': q_w_m2 / 1e6, 'hot_wall_temp_k': twg, 'thermal_margin_k': margin, 'survives': margin > 0.0}\n"
+        ),
+    },
 ]
 
 _TASK_TEST_SCRIPTS: dict[str, str] = {
@@ -590,6 +669,69 @@ _TASK_TEST_SCRIPTS: dict[str, str] = {
             )
         except Exception:
             results["p2p"]["test_positive_delta_v_outputs"] = False
+    """),
+    "AERO-009": textwrap.dedent("""\
+        results = {"f2p": {}, "p2p": {}}
+        try:
+            dt = _fn(0.01, 2800.0, 900.0, 0.45)
+            courant = dt * (2800.0 + 900.0) / 0.01
+            results["f2p"]["test_supersonic_cfl_stability_bound"] = (
+                0.0 < courant < 0.99 and abs(courant - 0.45) < 1e-6
+            )
+        except Exception:
+            results["f2p"]["test_supersonic_cfl_stability_bound"] = False
+        try:
+            dt_rev = _fn(0.01, -1200.0, 800.0, 0.45)
+            courant_rev = dt_rev * (1200.0 + 800.0) / 0.01
+            results["f2p"]["test_reverse_flow_abs_velocity_guard"] = (
+                0.0 < courant_rev < 0.99 and abs(courant_rev - 0.45) < 1e-6
+            )
+        except Exception:
+            results["f2p"]["test_reverse_flow_abs_velocity_guard"] = False
+        try:
+            dt_zero = _fn(0.02, 0.0, 1000.0, 0.5)
+            results["p2p"]["test_zero_velocity_acoustic_timestep"] = abs(dt_zero - 1e-5) < 1e-9
+        except Exception:
+            results["p2p"]["test_zero_velocity_acoustic_timestep"] = False
+        try:
+            dt1 = _fn(0.01, 1000.0, 500.0, 0.45)
+            dt2 = _fn(0.02, 1000.0, 500.0, 0.45)
+            results["p2p"]["test_linear_dx_grid_scaling"] = abs(dt2 - 2.0 * dt1) < 1e-12
+        except Exception:
+            results["p2p"]["test_linear_dx_grid_scaling"] = False
+    """),
+    "AERO-010": textwrap.dedent("""\
+        results = {"f2p": {}, "p2p": {}}
+        try:
+            res_inc = _fn(3400.0, 135.0, 22000.0, 95000.0, 21.5, 0.0018, 1250.0)
+            results["f2p"]["test_low_conductivity_inconel_overheat_detection"] = (
+                isinstance(res_inc, dict)
+                and res_inc.get("hot_wall_temp_k", 0.0) > 1500.0
+                and res_inc.get("survives") is False
+            )
+        except Exception:
+            results["f2p"]["test_low_conductivity_inconel_overheat_detection"] = False
+        try:
+            res_cu = _fn(3400.0, 135.0, 22000.0, 95000.0, 310.0, 0.0009, 1050.0)
+            results["f2p"]["test_series_wall_conduction_temperature_jump"] = (
+                isinstance(res_cu, dict) and 500.0 < res_cu.get("hot_wall_temp_k", 0.0) < 1050.0
+            )
+        except Exception:
+            results["f2p"]["test_series_wall_conduction_temperature_jump"] = False
+        try:
+            res_cu = _fn(3400.0, 135.0, 22000.0, 95000.0, 310.0, 0.0009, 1050.0)
+            results["p2p"]["test_high_conductivity_copper_survival"] = (
+                isinstance(res_cu, dict) and res_cu.get("survives") is True and res_cu.get("heat_flux_mw_m2", 0.0) > 30.0
+            )
+        except Exception:
+            results["p2p"]["test_high_conductivity_copper_survival"] = False
+        try:
+            res_iso = _fn(200.0, 200.0, 20000.0, 80000.0, 310.0, 0.001, 1050.0)
+            results["p2p"]["test_zero_heat_flux_isothermal_limit"] = (
+                isinstance(res_iso, dict) and abs(res_iso.get("heat_flux_mw_m2", 1.0)) < 1e-6
+            )
+        except Exception:
+            results["p2p"]["test_zero_heat_flux_isothermal_limit"] = False
     """),
 }
 

@@ -102,6 +102,7 @@ class _MetricsCollector:
                 "/api/simulation/flight": "rk4_trajectory",
                 "/api/simulation/orbit": "sgp4_orbit",
                 "/api/simulation/cfd": "cfd_surrogate",
+                "/api/simulation/nozzle-cfd": "nozzle_cfd_maccormack",
                 "/api/simulation/full-mission": "full_mission",
                 "/api/handshake/evaluate": "handshake_sandbox",
                 "/api/mcp/invoke": "mcp_portal",
@@ -184,6 +185,14 @@ class CompressibleGasRequest(BaseModel):
     gamma: float = Field(default=1.4, gt=1.0)
 
 
+class NozzleCFDRequest(BaseModel):
+    propellant: str = Field(default="METHALOX")
+    chamber_pressure_mpa: float = Field(default=10.0, gt=0.2, le=40.0)
+    ambient_pressure_kpa: float = Field(default=101.325, ge=0.0, le=1000.0)
+    expansion_ratio: float = Field(default=16.0, ge=1.5, le=120.0)
+    throat_radius_m: float = Field(default=0.12, gt=0.01, le=2.0)
+
+
 class SimulationRunCreateRequest(BaseModel):
     name: str = Field(default="Suborbital Sounding Flight")
     status: str = Field(default="COMPLETED")
@@ -216,6 +225,7 @@ def get_system_health() -> dict[str, Any]:
             "flight_dynamics_engine": "READY",
             "orbit_propagator": "READY",
             "cfd_surrogate_engine": "READY",
+            "nozzle_cfd_engine": "READY",
             "swe_bench_evaluator": "READY",
             "orbital_transfer_engine": "READY",
             "compressible_gas_engine": "READY",
@@ -224,7 +234,7 @@ def get_system_health() -> dict[str, Any]:
             "mcp_jsonrpc_transport": "READY",
             "handshake_evaluator": "isolated-subprocess-ast-v2",
         },
-        "version": "0.2.0",
+        "version": "0.3.0",
     }
 
 
@@ -449,6 +459,74 @@ def calculate_compressible_gas(req: CompressibleGasRequest) -> dict[str, Any]:
         "rho0_over_rho": round(rho0_rho, 4),
         "a_over_astar": round(a_astar, 4),
         "normal_shock": shock_data,
+    }
+
+
+@app.post("/api/simulation/nozzle-cfd", tags=["telemetry"])
+def simulate_nozzle_cfd_endpoint(req: NozzleCFDRequest) -> dict[str, Any]:
+    """Run multi-propellant rocket nozzle CFD, axial Mach/pressure profile, and Bartz cooling."""
+    summary = MCPPortal.invoke_tool("simulate_rocket_nozzle_cfd", req.model_dump())
+
+    # Generate lightweight 36-point axial station curve for real-time Mission Control canvas
+    gam = 1.21 if req.propellant.upper() == "METHALOX" else 1.20
+    gm1 = gam - 1.0
+    gp1 = gam + 1.0
+    pc_kpa = req.chamber_pressure_mpa * 1000.0
+    pa_kpa = max(0.05, req.ambient_pressure_kpa)
+
+    def _solve_m(ar: float, sup: bool) -> float:
+        if ar <= 1.0001:
+            return 1.0
+        lo, hi = (1.0001, 15.0) if sup else (1e-4, 0.9999)
+        for _ in range(45):
+            mid = 0.5 * (lo + hi)
+            f = (1.0 / mid) * (
+                ((2.0 / gp1) * (1.0 + 0.5 * gm1 * (mid**2))) ** (gp1 / (2.0 * gm1))
+            ) - ar
+            if (sup and f < 0.0) or ((not sup) and f > 0.0):
+                lo = mid
+            else:
+                hi = mid
+        return 0.5 * (lo + hi)
+
+    m_e_sup = _solve_m(req.expansion_ratio, True)
+    p_e_sup = pc_kpa * ((1.0 + 0.5 * gm1 * (m_e_sup**2)) ** (-gam / gm1))
+    p_e_shock = p_e_sup * (1.0 + (2.0 * gam / gp1) * ((m_e_sup**2) - 1.0))
+    shock_in_nozzle = pa_kpa > p_e_shock
+
+    n_pts = 36
+    throat_idx = 10
+    profile = []
+    for i in range(n_pts):
+        if i <= throat_idx:
+            s = (throat_idx - i) / throat_idx
+            ar = 1.0 + 2.2 * (s**2)
+            mach_i = _solve_m(ar, False)
+        else:
+            s = (i - throat_idx) / (n_pts - 1 - throat_idx)
+            ar = 1.0 + (req.expansion_ratio - 1.0) * (s**1.4)
+            if shock_in_nozzle and i >= 22:
+                mach_i = max(0.22, _solve_m(ar, False) * 1.15)
+            else:
+                mach_i = _solve_m(ar, True)
+        p_i = pc_kpa * ((1.0 + 0.5 * gm1 * (mach_i**2)) ** (-gam / gm1))
+        if shock_in_nozzle and i >= 22:
+            p_i = min(pc_kpa, pa_kpa * (0.85 + 0.15 * ((i - 22) / (n_pts - 1 - 22))))
+        q_i = summary["peak_heat_flux_mw_m2"] * ((1.0 / ar) ** 0.9)
+        profile.append(
+            {
+                "x_norm": round(i / (n_pts - 1), 3),
+                "area_ratio": round(ar, 3),
+                "mach": round(mach_i, 3),
+                "pressure_kpa": round(p_i, 2),
+                "heat_flux_mw_m2": round(q_i, 2),
+            }
+        )
+
+    return {
+        **summary,
+        "shock_in_nozzle": shock_in_nozzle,
+        "axial_profile": profile,
     }
 
 
