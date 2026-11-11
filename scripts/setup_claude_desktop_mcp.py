@@ -37,6 +37,10 @@ SERVERS = {
         "repo_dir": "f:\\aero-eval-benchmark",
         "module": "aero_eval.mcp.server",
     },
+    "nozzle-cfd-propulsion": {
+        "repo_dir": "f:\\nozzle-cfd-propulsion",
+        "module": "nozzle_cfd.mcp_server",
+    },
 }
 
 
