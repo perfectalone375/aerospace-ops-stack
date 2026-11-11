@@ -13,6 +13,10 @@ import sys
 from pathlib import Path
 
 SERVERS = {
+    "aerospace-ops-stack": {
+        "repo_dir": "f:\\aerospace-ops-stack",
+        "module": "aerospace_ops.mcp.server",
+    },
     "aero-flight-dynamics": {
         "repo_dir": "f:\\askable",
         "module": "aero_flight_dynamics.mcp.server",

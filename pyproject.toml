@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aerospace-ops-stack"
-version = "0.1.0"
-description = "Cloud-Native Aerospace Microservices Stack & Mission Control Telemetry Visualizer with Docker Compose."
+version = "0.2.0"
+description = "Enterprise Aerospace Microservices Stack, SQLite WAL Persistence, JSON-RPC 2.0 MCP Central Portal & Handshake AI Sandboxed Code Evaluator."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -37,6 +37,7 @@ dev = [
 
 [project.scripts]
 aero-ops = "aerospace_ops.gateway:main"
+aero-ops-mcp = "aerospace_ops.mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,14 +2,16 @@ FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    AERO_OPS_DB_PATH=/app/data/aero_ops.db
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /app/data
 
 COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
@@ -19,6 +21,7 @@ RUN pip install --upgrade pip && \
     pip install -e ".[dev]"
 
 FROM base AS test
+ENV AERO_OPS_DB_PATH=/tmp/test_aero_ops.db
 CMD ["pytest", "-v", "tests/"]
 
 FROM base AS runtime

@@ -179,24 +179,59 @@ def test_mcp_portal_invocations():
 
 
 def test_handshake_ai_registry_and_evaluation():
-    """Verify all 8 Handshake challenge tasks and test harness resolution."""
+    """Verify all 8 Handshake tasks fail on buggy starter code and pass on gold fixes in isolated AST sandbox."""
     assert len(HANDSHAKE_TASKS) == 8
     task_ids = [t["task_id"] for t in HANDSHAKE_TASKS]
     assert task_ids == [f"AERO-00{i}" for i in range(1, 9)]
 
-    # Successful patch for AERO-001 (tanh bridge)
-    valid_patch = "def transonic_drag(mach): return 0.25 + 0.35 * math.tanh(abs(mach - 1.0) / 0.1)"
-    res_pass = evaluate_handshake_candidate_patch("AERO-001", valid_patch, "Sonnet-Agent")
-    assert res_pass["is_resolved"] is True
-    assert res_pass["status"] == "RESOLVED"
-    assert res_pass["fail_to_pass_score"] == "2/2"
+    for task in HANDSHAKE_TASKS:
+        tid = task["task_id"]
+        res_buggy = evaluate_handshake_candidate_patch(
+            tid, task["starter_buggy_code"], "Buggy-Baseline"
+        )
+        assert res_buggy["is_resolved"] is False, f"{tid} buggy code should fail"
+        assert res_buggy["status"] == "FAILED"
 
-    # Failing patch for AERO-001 (missing hyperbolic tangent bridge)
-    failing_patch = "def drag(mach): return 0.1 * mach"
-    res_fail = evaluate_handshake_candidate_patch("AERO-001", failing_patch, "Baseline-Agent")
-    assert res_fail["is_resolved"] is False
-    assert res_fail["status"] == "FAILED"
-    assert res_fail["fail_to_pass_score"] == "0/2"
+        res_gold = evaluate_handshake_candidate_patch(
+            tid, task["reference_solution"], "Gold-Baseline"
+        )
+        assert res_gold["is_resolved"] is True, f"{tid} gold code failed: {res_gold}"
+        assert res_gold["status"] == "RESOLVED"
+        assert res_gold["sandbox_engine"] == "isolated-subprocess-ast-v2"
+
+
+def test_handshake_unified_diff_and_sandbox_security():
+    """Verify unified diff extraction, syntax errors, disallowed imports, and infinite-loop timeouts."""
+    diff_patch = (
+        "--- a/aero.py\n"
+        "+++ b/aero.py\n"
+        "@@ -1,3 +1,3 @@\n"
+        " def burn_propellant_step(propellant_mass_kg: float, mdot_kg_s: float, dt_s: float) -> float:\n"
+        "-    return propellant_mass_kg - mdot_kg_s * dt_s\n"
+        "+    burned = min(propellant_mass_kg, max(0.0, mdot_kg_s * dt_s))\n"
+        "+    return max(0.0, propellant_mass_kg - burned)\n"
+    )
+    res_diff = evaluate_handshake_candidate_patch("AERO-005", diff_patch, "Diff-Agent")
+    assert res_diff["status"] == "RESOLVED"
+    assert res_diff["is_resolved"] is True
+
+    res_syntax = evaluate_handshake_candidate_patch("AERO-001", "def broken(:", "Syntax-Agent")
+    assert res_syntax["status"] == "SYNTAX_ERROR"
+    assert res_syntax["is_resolved"] is False
+
+    res_sec = evaluate_handshake_candidate_patch(
+        "AERO-001", "import os\ndef f(m):\n    return 0.5\n", "Malicious-Agent"
+    )
+    assert res_sec["status"] == "SECURITY_VIOLATION"
+    assert res_sec["is_resolved"] is False
+
+    res_timeout = evaluate_handshake_candidate_patch(
+        "AERO-001",
+        "def correct_sonic_singularity(m):\n    while True:\n        pass\n",
+        "Timeout-Agent",
+    )
+    assert res_timeout["status"] == "TIMEOUT"
+    assert res_timeout["is_resolved"] is False
 
 
 # ==============================================================================
@@ -208,7 +243,7 @@ client = TestClient(app)
 
 
 def test_gateway_health_reports_database_and_mcp():
-    """Verify health endpoint surfaces persistent DB, MCP portal, and Handshake evaluator."""
+    """Verify health endpoint surfaces persistent DB, MCP JSON-RPC, and Handshake evaluator."""
     resp = client.get("/api/health")
     assert resp.status_code == 200
     data = resp.json()
@@ -216,7 +251,8 @@ def test_gateway_health_reports_database_and_mcp():
     services = data["services"]
     assert services["database"] == "CONNECTED"
     assert services["mcp_portal"] == "READY"
-    assert services["handshake_evaluator"] == "READY"
+    assert services["mcp_jsonrpc_transport"] == "READY"
+    assert services["handshake_evaluator"] == "isolated-subprocess-ast-v2"
 
 
 def test_gateway_database_endpoints():
@@ -301,17 +337,18 @@ def test_gateway_mcp_endpoints():
 
 def test_gateway_handshake_evaluation_and_leaderboard():
     """Test Handshake AI task enumeration, candidate patch evaluation, and DB leaderboard."""
-    # List tasks
     tasks_resp = client.get("/api/handshake/tasks")
     assert tasks_resp.status_code == 200
-    assert tasks_resp.json()["count"] == 8
+    data = tasks_resp.json()
+    assert data["count"] == 8
 
-    # Evaluate candidate patch
+    aero6_gold = next(t for t in data["tasks"] if t["task_id"] == "AERO-006")["reference_solution"]
+
     eval_resp = client.post(
         "/api/handshake/evaluate",
         json={
             "task_id": "AERO-006",
-            "patch_text": "def fix_gimbal_lock(q): return [x / 0.999999 for x in q]",
+            "patch_text": aero6_gold,
             "model_name": "Test-Agent-v2",
         },
     )
@@ -321,9 +358,74 @@ def test_gateway_handshake_evaluation_and_leaderboard():
     assert eval_data["is_resolved"] is True
     assert "evaluation_id" in eval_data
 
-    # Check leaderboard reflects new evaluation
     lead_resp = client.get("/api/db/leaderboard")
     assert lead_resp.status_code == 200
     lead_data = lead_resp.json()
     models = [m["model_name"] for m in lead_data["leaderboard"]]
     assert "Test-Agent-v2" in models
+
+
+def test_mcp_jsonrpc_server_protocol():
+    """Test native MCP JSON-RPC 2.0 HTTP transport across initialize, tools, and resources."""
+    init_resp = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+    assert init_resp.status_code == 200
+    assert init_resp.json()["result"]["protocolVersion"] == "2024-11-05"
+
+    notif_resp = client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
+    assert notif_resp.status_code == 204
+
+    tools_resp = client.post("/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert tools_resp.status_code == 200
+    assert len(tools_resp.json()["result"]["tools"]) >= 6
+
+    call_resp = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "calculate_oblique_shock",
+                "arguments": {"mach1": 2.0, "theta_deg": 10.0},
+            },
+        },
+    )
+    assert call_resp.status_code == 200
+    call_result = call_resp.json()["result"]
+    assert call_result["isError"] is False
+    assert "beta_deg" in call_result["content"][0]["text"]
+
+    res_list = client.post("/mcp", json={"jsonrpc": "2.0", "id": 4, "method": "resources/list"})
+    assert res_list.status_code == 200
+    uris = {r["uri"] for r in res_list.json()["result"]["resources"]}
+    assert "aeroops://handshake/tasks" in uris
+    assert "aeroops://db/runs" in uris
+
+    res_read = client.post(
+        "/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "resources/read",
+            "params": {"uri": "aeroops://handshake/tasks"},
+        },
+    )
+    assert res_read.status_code == 200
+    assert "AERO-001" in res_read.json()["result"]["contents"][0]["text"]
+
+    unknown_resp = client.post("/mcp", json={"jsonrpc": "2.0", "id": 6, "method": "unknown/method"})
+    assert unknown_resp.json()["error"]["code"] == -32601
+
+
+def test_live_prometheus_metrics_increment():
+    """Verify HTTP telemetry middleware dynamically increments /metrics counters."""
+    client.get("/api/health")
+    m1 = client.get("/metrics").text
+    client.get("/api/health")
+    m2 = client.get("/metrics").text
+
+    assert 'gateway_requests_total{handler="/api/health",status="200"}' in m2
+    # Extract integer counts for /api/health
+    line1 = next(line for line in m1.splitlines() if 'handler="/api/health",status="200"' in line)
+    line2 = next(line for line in m2.splitlines() if 'handler="/api/health",status="200"' in line)
+    assert int(line2.split()[-1]) > int(line1.split()[-1])

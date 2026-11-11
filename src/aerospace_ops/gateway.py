@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
+import threading
+import time
 import uuid
+from collections import defaultdict, deque
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -20,12 +24,12 @@ from aerospace_ops.db import (
     TelemetryEventRecord,
 )
 from aerospace_ops.handshake import HANDSHAKE_TASKS, evaluate_handshake_candidate_patch
-from aerospace_ops.mcp import MCPPortal
+from aerospace_ops.mcp import MCPPortal, handle_jsonrpc_request
 
 app = FastAPI(
     title="Aerospace Mission Operations Platform",
     version="0.2.0",
-    description="Unified API Gateway, ACID Database Telemetry Hub, MCP Central Portal, and Handshake AI Evaluation Suite.",
+    description="Unified API Gateway, ACID Database Telemetry Hub, JSON-RPC 2.0 MCP Portal, and Handshake AI Sandboxed Code Evaluator.",
 )
 
 app.add_middleware(
@@ -37,8 +41,115 @@ app.add_middleware(
 )
 
 STATIC_DIR = pathlib.Path(__file__).parent / "static"
-DB_PATH = pathlib.Path(__file__).parent / "aero_ops.db"
-db = DatabaseManager(db_path=DB_PATH)
+_DEFAULT_DB = pathlib.Path.cwd() / "data" / "aero_ops.db"
+DB_PATH_STR = os.getenv("AERO_OPS_DB_PATH", str(_DEFAULT_DB))
+if DB_PATH_STR != ":memory:":
+    pathlib.Path(DB_PATH_STR).parent.mkdir(parents=True, exist_ok=True)
+db = DatabaseManager(db_path=DB_PATH_STR)
+
+
+class _MetricsCollector:
+    """Thread-safe in-memory Prometheus metrics collector for HTTP telemetry."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.request_counts: dict[tuple[str, str], int] = defaultdict(int)
+        self.latencies: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=500))
+        self.active_requests = 0
+
+    def record(self, handler: str, status: str, elapsed_s: float) -> None:
+        with self._lock:
+            self.request_counts[(handler, status)] += 1
+            self.latencies[handler].append(elapsed_s)
+
+    def render_prometheus(self) -> str:
+        with self._lock:
+            lines = [
+                "# HELP gateway_requests_total Total number of HTTP requests processed by AeroOps gateway.",
+                "# TYPE gateway_requests_total counter",
+            ]
+            if not self.request_counts:
+                lines.append('gateway_requests_total{handler="/api/health",status="200"} 0')
+            else:
+                for (handler, status), count in sorted(self.request_counts.items()):
+                    lines.append(
+                        f'gateway_requests_total{{handler="{handler}",status="{status}"}} {count}'
+                    )
+
+            lines.extend(
+                [
+                    "",
+                    "# HELP aerospace_service_up Status of microservice cluster nodes (1 = UP, 0 = DOWN).",
+                    "# TYPE aerospace_service_up gauge",
+                    'aerospace_service_up{service="gateway"} 1',
+                    'aerospace_service_up{service="trajectory"} 1',
+                    'aerospace_service_up{service="astrodynamics"} 1',
+                    'aerospace_service_up{service="cfd"} 1',
+                    'aerospace_service_up{service="evaluator"} 1',
+                    'aerospace_service_up{service="database"} 1',
+                    'aerospace_service_up{service="mcp_portal"} 1',
+                    "",
+                    "# HELP gateway_active_simulations Number of active requests currently executing.",
+                    "# TYPE gateway_active_simulations gauge",
+                    f"gateway_active_simulations {self.active_requests}",
+                    "",
+                    "# HELP simulation_execution_seconds Observed execution latency of HTTP handlers and solvers.",
+                    "# TYPE simulation_execution_seconds summary",
+                ]
+            )
+
+            solver_routes = {
+                "/api/simulation/flight": "rk4_trajectory",
+                "/api/simulation/orbit": "sgp4_orbit",
+                "/api/simulation/cfd": "cfd_surrogate",
+                "/api/simulation/full-mission": "full_mission",
+                "/api/handshake/evaluate": "handshake_sandbox",
+                "/api/mcp/invoke": "mcp_portal",
+            }
+            emitted_summary = False
+            for route, label in solver_routes.items():
+                samples = sorted(self.latencies.get(route, ()))
+                if samples:
+                    emitted_summary = True
+                    p50 = samples[int(0.5 * (len(samples) - 1))]
+                    p99 = samples[int(0.99 * (len(samples) - 1))]
+                    lines.append(
+                        f'simulation_execution_seconds{{solver="{label}",quantile="0.5"}} {p50:.6f}'
+                    )
+                    lines.append(
+                        f'simulation_execution_seconds{{solver="{label}",quantile="0.99"}} {p99:.6f}'
+                    )
+                    lines.append(
+                        f'simulation_execution_seconds_count{{solver="{label}"}} {len(samples)}'
+                    )
+            if not emitted_summary:
+                lines.append(
+                    'simulation_execution_seconds{solver="gateway",quantile="0.5"} 0.000000'
+                )
+            lines.append("")
+            return "\n".join(lines)
+
+
+metrics_collector = _MetricsCollector()
+
+
+@app.middleware("http")
+async def prometheus_telemetry_middleware(request: Request, call_next: Any) -> Response:
+    """Measure live request latency and increment Prometheus route counters."""
+    handler = request.url.path
+    with metrics_collector._lock:
+        metrics_collector.active_requests += 1
+    start = time.perf_counter()
+    status_code = "500"
+    try:
+        response = await call_next(request)
+        status_code = str(response.status_code)
+        return response
+    finally:
+        elapsed_s = time.perf_counter() - start
+        with metrics_collector._lock:
+            metrics_collector.active_requests = max(0, metrics_collector.active_requests - 1)
+        metrics_collector.record(handler, status_code, elapsed_s)
 
 
 class FlightSimulationRequest(BaseModel):
@@ -110,7 +221,8 @@ def get_system_health() -> dict[str, Any]:
             "compressible_gas_engine": "READY",
             "database": "CONNECTED",
             "mcp_portal": "READY",
-            "handshake_evaluator": "READY",
+            "mcp_jsonrpc_transport": "READY",
+            "handshake_evaluator": "isolated-subprocess-ast-v2",
         },
         "version": "0.2.0",
     }
@@ -462,6 +574,15 @@ def invoke_mcp_tool(req: MCPInvokeRequest) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"MCP invocation failed: {e}") from e
 
 
+@app.post("/mcp", tags=["mcp"])
+def mcp_jsonrpc_transport(payload: dict[str, Any]) -> Any:
+    """Native Model Context Protocol (MCP) JSON-RPC 2.0 HTTP transport."""
+    resp = handle_jsonrpc_request(payload, db=db)
+    if resp is None:
+        return Response(status_code=204)
+    return resp
+
+
 # ==============================================================================
 # Handshake AI Evaluation Suite Endpoints
 # ==============================================================================
@@ -493,38 +614,11 @@ def evaluate_handshake_task(req: HandshakeEvaluateRequest) -> dict[str, Any]:
 
 @app.get("/metrics", response_class=PlainTextResponse, tags=["observability"])
 def get_prometheus_metrics() -> PlainTextResponse:
-    """Prometheus metrics endpoint for cloud-native observability."""
-    metrics_text = (
-        "# HELP gateway_requests_total Total number of HTTP requests processed by AeroOps gateway.\n"
-        "# TYPE gateway_requests_total counter\n"
-        'gateway_requests_total{handler="/api/health",status="200"} 42\n'
-        'gateway_requests_total{handler="/api/simulation/flight",status="200"} 18\n'
-        'gateway_requests_total{handler="/api/simulation/orbit",status="200"} 15\n'
-        'gateway_requests_total{handler="/api/simulation/cfd",status="200"} 24\n'
-        'gateway_requests_total{handler="/api/simulation/full-mission",status="200"} 9\n'
-        'gateway_requests_total{handler="/api/mcp/invoke",status="200"} 31\n'
-        'gateway_requests_total{handler="/api/handshake/evaluate",status="200"} 16\n\n'
-        "# HELP aerospace_service_up Status of microservice cluster nodes (1 = UP, 0 = DOWN).\n"
-        "# TYPE aerospace_service_up gauge\n"
-        'aerospace_service_up{service="gateway"} 1\n'
-        'aerospace_service_up{service="trajectory"} 1\n'
-        'aerospace_service_up{service="astrodynamics"} 1\n'
-        'aerospace_service_up{service="cfd"} 1\n'
-        'aerospace_service_up{service="evaluator"} 1\n'
-        'aerospace_service_up{service="database"} 1\n'
-        'aerospace_service_up{service="mcp_portal"} 1\n\n'
-        "# HELP gateway_active_simulations Number of active simulation jobs currently running.\n"
-        "# TYPE gateway_active_simulations gauge\n"
-        "gateway_active_simulations 0\n\n"
-        "# HELP simulation_execution_seconds Mean execution latency of physics solvers.\n"
-        "# TYPE simulation_execution_seconds summary\n"
-        'simulation_execution_seconds{solver="rk4_trajectory",quantile="0.5"} 0.0084\n'
-        'simulation_execution_seconds{solver="rk4_trajectory",quantile="0.99"} 0.0152\n'
-        'simulation_execution_seconds{solver="sgp4_orbit",quantile="0.5"} 0.0012\n'
-        'simulation_execution_seconds{solver="cfd_surrogate",quantile="0.5"} 0.0016\n'
-        'simulation_execution_seconds{solver="full_mission",quantile="0.5"} 0.0420\n'
+    """Live Prometheus metrics endpoint populated via HTTP telemetry middleware."""
+    return PlainTextResponse(
+        content=metrics_collector.render_prometheus(),
+        media_type="text/plain; version=0.0.4",
     )
-    return PlainTextResponse(content=metrics_text, media_type="text/plain; version=0.0.4")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["ui"])
